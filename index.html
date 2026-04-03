@@ -234,16 +234,18 @@ status.innerText="✅ บันทึกสำเร็จ กำลังรี
 setTimeout(()=>{
   location.reload();
 }, 800);
-
-}
-status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
-}
-
+  
 alert("ขายสำเร็จ!");
+
+location.reload();
 
 setTimeout(()=>{
   qty.focus();
 }, 300);
+
+}
+status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
+}
 
 // ===== SALES TABLE =====
 function renderSales(){
