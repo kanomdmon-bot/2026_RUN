@@ -122,14 +122,8 @@ let products = {
 "HP500":{price:990,stock:30,min:10}
 };
 
-const API_URL = "https://script.google.com/macros/s/AKfycbw7cTcyuWXKqmZIwnmXj7MAOiLpLkEunQ69wTnz4IKJLter4kfUpc4itXQEv6p254bUKw/exec";
-
-async function sendToSheet(data){
-  await fetch(API_URL,{
-    method:"POST",
-    body: JSON.stringify(data)
-  });
-}
+let cart=[];
+let sales=[];
 
 // load product
 for(let p in products){
@@ -204,8 +198,7 @@ await sendToSheet({
   event:ev,
   items:itemsText,
   qty: totalQty,
-  total: total,
-  cart: cart   // 🔥 เพิ่มบรรทัดนี้
+  total: total
 });
 
 sales.push({
@@ -220,35 +213,20 @@ renderSales();
 
 status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
 }
+// 🔥 รีเซ็ตหน้ากลับไปเริ่มใหม่
+cart = [];
+renderCart();
 
-});
+// เคลียร์ input
+qty.value = "";
+price.value = "";
+username.value = "";
 
-// 🔥 รีเฟรชทันที
-location.reload();
+// เลือกสินค้า default ใหม่
+product.selectedIndex = 0;
 
-sendToSheet({
-  user:user,
-  event:ev,
-  items:itemsText,
-  qty: totalQty,
-  total: total
-}).then(()=>{
-  location.reload();
-});
-
-}
-async function loadStock(){
-  const res = await fetch(API_URL);
-  const data = await res.json();
-
-  for(let p in data){
-    if(products[p]){
-      products[p].stock = data[p];
-    }
-  }
-}
-
-loadStock();
+// โฟกัสให้กรอกต่อทันที
+qty.focus();
 
 // ===== SALES TABLE =====
 function renderSales(){
