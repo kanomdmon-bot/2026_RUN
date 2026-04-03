@@ -222,6 +222,18 @@ sendToSheet({
 });
 
 }
+async function loadStock(){
+  const res = await fetch(API_URL);
+  const data = await res.json();
+
+  for(let p in data){
+    if(products[p]){
+      products[p].stock = data[p];
+    }
+  }
+}
+
+loadStock();
 
 // ===== SALES TABLE =====
 function renderSales(){
