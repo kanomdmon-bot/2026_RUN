@@ -50,6 +50,23 @@ input,select { padding:8px; margin:5px; border-radius:6px; border:1px solid #ccc
 <div class="card">
 <h3>รายการขาย</h3>
 
+<script>
+
+// ===== DATA =====
+let products = {
+"แก้ว":{price:69,stock:100,min:50},
+"PCM1000":{price:1290,stock:2,min:0},
+"PEA1000":{price:1290,stock:2,min:0},
+"PCF1000":{price:1290,stock:2,min:0},
+"WEC1000":{price:1690,stock:4,min:2},
+"WEI1000":{price:1690,stock:4,min:2},
+"WER1000":{price:1690,stock:4,min:2},
+"PCF500":{price:990,stock:100,min:50},
+"WEC300":{price:990,stock:20,min:10},
+"Test HP35g.":{price:99,stock:200,min:100},
+"HP35g แบบกล่อง.":{price:99,stock:120,min:60},
+"HP500":{price:990,stock:30,min:10}
+};  
 <select id="product"></select>
 <input type="number" id="qty" placeholder="จำนวน">
 <input type="number" id="price" placeholder="ราคา">
