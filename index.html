@@ -201,6 +201,25 @@ totalQty += c.q;
 });
 
 // 🔥 ส่งไป Google Sheet
+async function checkout(){
+
+if(cart.length===0) return alert("ไม่มีสินค้า");
+
+let user=username.value || "ไม่ระบุ";
+let ev=event.value;
+let total=0;
+let itemsText="";
+let totalQty=0;
+
+// ตัดสต็อก
+cart.forEach(c=>{
+  products[c.p].stock-=c.q;
+  total+=c.price*c.q;
+  itemsText += c.p + "(" + c.q + "), ";
+  totalQty += c.q;
+});
+
+// ส่งไป Google Sheet
 await sendToSheet({
   user:user,
   event:ev,
@@ -209,16 +228,14 @@ await sendToSheet({
   total: total
 });
 
-sales.push({
-user,
-items:[...cart],
-total
-});
+status.innerText="✅ บันทึกสำเร็จ กำลังรีเซ็ต...";
 
-cart=[];
-renderCart();
-renderSales();
+// ⏳ หน่วงนิดนึงให้เห็นข้อความก่อน
+setTimeout(()=>{
+  location.reload();
+}, 800);
 
+}
 status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
 }
 
