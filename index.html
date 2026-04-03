@@ -211,6 +211,10 @@ let total=0;
 let itemsText="";
 let totalQty=0;
 
+alert("ขายสำเร็จ!");
+
+location.reload();
+
 // ตัดสต็อก
 cart.forEach(c=>{
   products[c.p].stock-=c.q;
@@ -229,19 +233,6 @@ await sendToSheet({
 });
 
 status.innerText="✅ บันทึกสำเร็จ กำลังรีเซ็ต...";
-
-// ⏳ หน่วงนิดนึงให้เห็นข้อความก่อน
-setTimeout(()=>{
-  location.reload();
-}, 800);
-  
-alert("ขายสำเร็จ!");
-
-location.reload();
-
-setTimeout(()=>{
-  qty.focus();
-}, 300);
 
 }
 status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
