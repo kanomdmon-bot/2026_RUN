@@ -1,43 +1,10 @@
 <script>
+const API_URL = "https://script.google.com/macros/s/AKfycbz0A-3dSwIprPd06gWxOr0qHJ6ng3JJLXTxOYajrhH9Q2g89RhMxjAFDp1EhSjbEdJGZQ/exec";
 
-// ===== DATA =====
-let products = {
-"แก้ว":{price:69,stock:100,min:50},
-"PCM1000":{price:1290,stock:2,min:0},
-"PEA1000":{price:1290,stock:2,min:0},
-"PCF1000":{price:1290,stock:2,min:0},
-"WEC1000":{price:1690,stock:4,min:2},
-"WEI1000":{price:1690,stock:4,min:2},
-"WER1000":{price:1690,stock:4,min:2},
-"PCF500":{price:990,stock:100,min:50},
-"WEC300":{price:990,stock:20,min:10},
-"Test HP35g.":{price:99,stock:200,min:100},
-"HP35g แบบกล่อง.":{price:99,stock:120,min:60},
-"HP500":{price:990,stock:30,min:10}
-};
-
+let products = {};
 let cart=[];
 let sales=[];
-
-// ===== LOAD PRODUCT =====
-function loadProducts(){
-product.innerHTML="";
-for(let p in products){
-let op=document.createElement("option");
-op.value=p;
-op.text=p;
-product.appendChild(op);
-}
-}
-
-// ===== LOAD SALES FROM STORAGE =====
-function loadSalesFromStorage(){
-let saved = localStorage.getItem("salesData");
-if(saved){
-sales = JSON.parse(saved);
-}
-renderSales();
-}
+let isProcessing = false; // 🔥 กันกดซ้ำ
 
 // ===== CLOCK =====
 setInterval(()=>{
@@ -55,9 +22,8 @@ alert("จำนวนไม่ถูกต้อง");
 return;
 }
 
-// รวมสินค้าเดิม
+// 🔥 รวมสินค้าเดิม
 let found = cart.find(c=>c.p===p);
-
 if(found){
 found.q += q;
 }else{
@@ -66,7 +32,7 @@ cart.push({p,q,price:priceInput});
 
 renderCart();
 
-// clear input
+// reset input
 qty.value="";
 price.value="";
 }
@@ -93,7 +59,7 @@ renderCart();
 // ===== SEND TO SHEET =====
 async function sendToSheet(data){
 try{
-let res = await fetch("YOUR_API_URL",{
+let res = await fetch(API_URL,{
 method:"POST",
 body: JSON.stringify(data)
 });
@@ -106,7 +72,23 @@ return {status:"error"};
 // ===== CHECKOUT =====
 async function checkout(){
 
-if(cart.length===0) return alert("ไม่มีสินค้า");
+if(isProcessing) return; // 🔥 กันกดซ้ำ
+isProcessing = true;
+
+if(cart.length===0){
+alert("ไม่มีสินค้า");
+isProcessing = false;
+return;
+}
+
+// 🔥 กัน stock ติดลบ
+for(let c of cart){
+if(products[c.p].stock < c.q){
+alert("สต็อกไม่พอ: " + c.p);
+isProcessing = false;
+return;
+}
+}
 
 let user=username.value || "ไม่ระบุ";
 let ev=event.value;
@@ -121,10 +103,13 @@ itemsText += c.p + " x " + c.q + "\n";
 totalQty += c.q;
 });
 
-// confirm
-if(!confirm(`ยอดรวม ${total} บาท ยืนยัน?`)) return;
+// 🔥 confirm แบบอ่านง่าย
+if(!confirm(`🧾 สรุปยอด\n\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\n\nยืนยัน?`)){
+isProcessing = false;
+return;
+}
 
-// ส่งข้อมูล
+// 🔥 ส่งข้อมูล
 let result = await sendToSheet({
 user:user,
 event:ev,
@@ -136,28 +121,22 @@ cart: cart
 
 if(result.status==="success"){
 
-// ✅ เก็บ sales
-sales.push({
-user:user,
-items:[...cart],
-total:total
-});
+await loadStock();
+await loadSales();
 
-// save
-localStorage.setItem("salesData", JSON.stringify(sales));
-
-// update UI
-renderSales();
-
-// clear cart
 cart=[];
 renderCart();
+
+qty.value="";
+price.value="";
 
 status.innerText="✅ บันทึกสำเร็จ";
 
 }else{
 status.innerText="❌ บันทึกไม่สำเร็จ";
 }
+
+isProcessing = false; // 🔥 ปลดล็อค
 }
 
 // ===== SALES TABLE =====
@@ -182,10 +161,30 @@ totalSales.innerText=total;
 totalOrders.innerText=sales.length;
 }
 
-// ===== DELETE =====
+// ===== LOAD STOCK =====
+async function loadStock(){
+let res = await fetch(API_URL+"?action=getStock");
+products = await res.json();
+
+product.innerHTML="";
+for(let p in products){
+let op=document.createElement("option");
+op.value=p;
+op.text=p;
+product.appendChild(op);
+}
+}
+
+// ===== LOAD SALES =====
+async function loadSales(){
+let res = await fetch(API_URL+"?action=getSales");
+sales = await res.json();
+renderSales();
+}
+
+// ===== DELETE (เฉพาะหน้า ไม่ลบ backend) =====
 function deleteSale(i){
 sales.splice(i,1);
-localStorage.setItem("salesData", JSON.stringify(sales));
 renderSales();
 }
 
@@ -212,7 +211,7 @@ inventory.innerHTML=html;
 }
 
 // ===== INIT =====
-loadProducts();
-loadSalesFromStorage();
+loadStock();
+loadSales();
 
 </script>
