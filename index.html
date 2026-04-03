@@ -228,6 +228,21 @@ await sendToSheet({
 // ✅ รีเฟรชทันทีหลังบันทึก
 location.reload();
 }
+
+sales.push({
+  user: user,
+  items: cart,
+  total: total
+});
+
+localStorage.setItem("salesData", JSON.stringify(sales));
+
+renderSales();
+cart = [];
+renderCart();
+
+// location.reload(); // ปิดไว้ก่อน
+
 // ===== SALES TABLE =====
 function renderSales(){
 salesTable.innerHTML="";
