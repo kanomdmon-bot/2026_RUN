@@ -222,6 +222,21 @@ renderSales();
 status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
 }
 
+// 🔥 รีเซ็ตหน้ากลับไปเริ่มใหม่
+cart = [];
+renderCart();
+
+// เคลียร์ input
+qty.value = "";
+price.value = "";
+username.value = "";
+
+// เลือกสินค้า default ใหม่
+product.selectedIndex = 0;
+
+// โฟกัสให้กรอกต่อทันที
+qty.focus();
+
 // ===== SALES TABLE =====
 function renderSales(){
 salesTable.innerHTML="";
