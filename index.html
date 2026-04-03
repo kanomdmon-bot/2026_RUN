@@ -190,20 +190,37 @@ let total=0;
 let itemsText="";
 let totalQty=0;
 
+// ตัดสต็อก
 cart.forEach(c=>{
-  products[c.p].stock-=c.q;
-  total+=c.price*c.q;
-  itemsText += c.p + "(" + c.q + "), ";
-  totalQty += c.q;
+products[c.p].stock-=c.q;
+total+=c.price*c.q;
+itemsText += c.p + "(" + c.q + "), ";
+totalQty += c.q;
 });
 
-// ส่งข้อมูลไป Google Sheet
+// 🔥 ส่งไป Google Sheet
 await sendToSheet({
   user:user,
   event:ev,
   items:itemsText,
   qty: totalQty,
-  total: total
+  total: total,
+  cart: cart   // 🔥 เพิ่มบรรทัดนี้
+});
+
+sales.push({
+user,
+items:[...cart],
+total
+});
+
+cart=[];
+renderCart();
+renderSales();
+
+status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
+}
+
 });
 
 // 🔥 รีเฟรชทันที
