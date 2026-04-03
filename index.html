@@ -50,23 +50,6 @@ input,select { padding:8px; margin:5px; border-radius:6px; border:1px solid #ccc
 <div class="card">
 <h3>รายการขาย</h3>
 
-<script>
-
-// ===== DATA =====
-let products = {
-"แก้ว":{price:69,stock:100,min:50},
-"PCM1000":{price:1290,stock:2,min:0},
-"PEA1000":{price:1290,stock:2,min:0},
-"PCF1000":{price:1290,stock:2,min:0},
-"WEC1000":{price:1690,stock:4,min:2},
-"WEI1000":{price:1690,stock:4,min:2},
-"WER1000":{price:1690,stock:4,min:2},
-"PCF500":{price:990,stock:100,min:50},
-"WEC300":{price:990,stock:20,min:10},
-"Test HP35g.":{price:99,stock:200,min:100},
-"HP35g แบบกล่อง.":{price:99,stock:120,min:60},
-"HP500":{price:990,stock:30,min:10}
-};  
 <select id="product"></select>
 <input type="number" id="qty" placeholder="จำนวน">
 <input type="number" id="price" placeholder="ราคา">
@@ -121,14 +104,7 @@ let products = {
 
 </div>
 
-<script> const API_URL = "https://script.google.com/macros/s/AKfycbw0n7x1NsL_-oHQ6alWBBigkegH_ojhNqFHfUIZgVUJjorrewbrb8y-o5D9Nhl3Rv-5yg/exec";
-
-async function sendToSheet(data){
-  await fetch(API_URL,{
-    method:"POST",
-    body: JSON.stringify(data)
-  });
-}
+<script>
 
 // ===== DATA =====
 let products = {
@@ -148,6 +124,14 @@ let products = {
 
 let cart=[];
 let sales=[];
+const API_URL = "https://script.google.com/macros/s/AKfycbyypnYC3B965h6bGvFcwvpmFml5JyNqpRKgO0MSohytIWhmN5wCx0AnLYprRxD622pR/exec";
+
+async function sendToSheet(data){
+  await fetch(API_URL,{
+    method:"POST",
+    body: JSON.stringify(data)
+  });
+}
 
 // load product
 for(let p in products){
@@ -198,8 +182,6 @@ renderCart();
 }
 
 // ===== CHECKOUT =====
-function checkout(){
-
 async function checkout(){
 
 if(cart.length===0) return alert("ไม่มีสินค้า");
