@@ -2,216 +2,247 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbwkHj712UTdvlIyxTB6_RXqQGJzISM4tt4t_HSqrTwtZ-sgzA0Kl0Dahi400jQd13TsAA/exec";
 
 let products = {};
-let cart=[];
-let sales=[];
-let isProcessing = false; // 🔥 กันกดซ้ำ
+let cart = [];
+let sales = [];
+let isProcessing = false;
 
 // ===== CLOCK =====
 setInterval(()=>{
-time.innerText=new Date().toLocaleString();
+  document.getElementById("time").innerText = new Date().toLocaleString();
 },1000);
 
 // ===== ADD TO CART =====
 function addToCart(){
-let p=product.value;
-let q=parseInt(qty.value);
-let priceInput=price.value?parseInt(price.value):products[p].price;
+  let p = product.value;
+  let q = parseInt(qty.value);
+  let priceInput = price.value ? parseInt(price.value) : (products[p]?.price || 0);
 
-if(!q || q<=0){
-alert("จำนวนไม่ถูกต้อง");
-return;
-}
+  if(!q || q <= 0){
+    alert("จำนวนไม่ถูกต้อง");
+    return;
+  }
 
-// 🔥 รวมสินค้าเดิม
-let found = cart.find(c=>c.p===p);
-if(found){
-found.q += q;
-}else{
-cart.push({p,q,price:priceInput});
-}
+  if(!products[p]){
+    alert("ไม่พบสินค้า");
+    return;
+  }
 
-renderCart();
+  let found = cart.find(c=>c.p===p);
+  if(found){
+    found.q += q;
+  }else{
+    cart.push({p,q,price:priceInput});
+  }
 
-// reset input
-qty.value="";
-price.value="";
+  renderCart();
+  qty.value="";
+  price.value="";
 }
 
 // ===== CART =====
 function renderCart(){
-let cartDiv=document.getElementById("cart");
-cartDiv.innerHTML="";
+  let cartDiv = document.getElementById("cart");
+  cartDiv.innerHTML = "";
 
-cart.forEach((c,i)=>{
-cartDiv.innerHTML+=`
-<div>
-${c.p} x ${c.q}
-<button onclick="removeCart(${i})">ลบ</button>
-</div>`;
-});
+  cart.forEach((c,i)=>{
+    cartDiv.innerHTML += `
+    <div>
+      ${c.p} x ${c.q}
+      <button onclick="removeCart(${i})">ลบ</button>
+    </div>`;
+  });
 }
 
 function removeCart(i){
-cart.splice(i,1);
-renderCart();
+  cart.splice(i,1);
+  renderCart();
 }
 
 // ===== SEND TO SHEET =====
 async function sendToSheet(data){
-try{
-let res = await fetch(API_URL,{
-method:"POST",
-body: JSON.stringify(data)
-});
-return await res.json();
-}catch(e){
-return {status:"error"};
-}
+  try{
+    let controller = new AbortController();
+    setTimeout(()=>controller.abort(),10000);
+
+    let res = await fetch(API_URL,{
+      method:"POST",
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+
+    return await res.json();
+
+  }catch(e){
+    return {status:"error", message:"network error"};
+  }
 }
 
 // ===== CHECKOUT =====
 async function checkout(){
 
-if(isProcessing) return; // 🔥 กันกดซ้ำ
-isProcessing = true;
+  if(isProcessing) return;
+  isProcessing = true;
 
-if(cart.length===0){
-alert("ไม่มีสินค้า");
-isProcessing = false;
-return;
-}
+  if(cart.length===0){
+    alert("ไม่มีสินค้า");
+    isProcessing = false;
+    return;
+  }
 
-// 🔥 กัน stock ติดลบ
-for(let c of cart){
-if(products[c.p].stock < c.q){
-alert("สต็อกไม่พอ: " + c.p);
-isProcessing = false;
-return;
-}
-}
+  // เช็ค stock
+  for(let c of cart){
+    if(!products[c.p] || products[c.p].stock < c.q){
+      alert("สต็อกไม่พอ: " + c.p);
+      isProcessing = false;
+      return;
+    }
+  }
 
-let user=username.value || "ไม่ระบุ";
-let ev=event.value;
+  let user = username.value || "ไม่ระบุ";
+  let ev = event.value;
 
-let total=0;
-let itemsText="";
-let totalQty=0;
+  let total = 0;
+  let itemsText = "";
+  let totalQty = 0;
 
-cart.forEach(c=>{
-total+=c.price*c.q;
-itemsText += c.p + " x " + c.q + "\n";
-totalQty += c.q;
-});
+  cart.forEach(c=>{
+    total += c.price * c.q;
+    itemsText += c.p + " x " + c.q + "\n";
+    totalQty += c.q;
+  });
 
-// 🔥 confirm แบบอ่านง่าย
-if(!confirm(`🧾 สรุปยอด\n\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\n\nยืนยัน?`)){
-isProcessing = false;
-return;
-}
+  if(!confirm(`🧾 สรุป\n\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\n\nยืนยัน?`)){
+    isProcessing = false;
+    return;
+  }
 
-// 🔥 ส่งข้อมูล
-let result = await sendToSheet({
-user:user,
-event:ev,
-items:itemsText,
-qty: totalQty,
-total: total,
-cart: cart
-});
+  status.innerText = "⏳ กำลังบันทึก...";
 
-if(result.status==="success"){
+  let result = await sendToSheet({
+    user:user,
+    event:ev,
+    items:itemsText,
+    qty: totalQty,
+    total: total,
+    cart: cart
+  });
 
-await loadStock();
-await loadSales();
+  if(result.status==="success"){
 
-cart=[];
-renderCart();
+    await loadStock();
+    await loadSales();
 
-qty.value="";
-price.value="";
+    cart=[];
+    renderCart();
 
-status.innerText="✅ บันทึกสำเร็จ";
+    qty.value="";
+    price.value="";
 
-}else{
-status.innerText="❌ บันทึกไม่สำเร็จ";
-}
+    status.innerText="✅ บันทึกสำเร็จ";
 
-isProcessing = false; // 🔥 ปลดล็อค
+  }else{
+    status.innerText="❌ "+(result.message || "บันทึกไม่สำเร็จ");
+  }
+
+  isProcessing = false;
 }
 
 // ===== SALES TABLE =====
 function renderSales(){
-salesTable.innerHTML="";
-let total=0;
+  let salesTable = document.getElementById("salesTable");
+  salesTable.innerHTML = "";
 
-sales.forEach((s,i)=>{
-total+=s.total;
+  let total = 0;
 
-salesTable.innerHTML+=`
-<tr>
-<td>${i+1}</td>
-<td>${s.user}</td>
-<td>${s.items.map(x=>x.p+"("+x.q+")").join(",")}</td>
-<td>${s.total}</td>
-<td><button onclick="deleteSale(${i})" class="danger">ลบ</button></td>
-</tr>`;
-});
+  sales.forEach((s,i)=>{
+    total += Number(s.total) || 0;
 
-totalSales.innerText=total;
-totalOrders.innerText=sales.length;
+    let itemsText = Array.isArray(s.items)
+      ? s.items.map(x=>x.p+"("+x.q+")").join(",")
+      : s.items;
+
+    salesTable.innerHTML += `
+    <tr>
+      <td>${i+1}</td>
+      <td>${s.user}</td>
+      <td>${itemsText}</td>
+      <td>${s.total}</td>
+      <td><button onclick="deleteSale(${i})" class="danger">ลบ</button></td>
+    </tr>`;
+  });
+
+  document.getElementById("totalSales").innerText = total;
+  document.getElementById("totalOrders").innerText = sales.length;
 }
 
 // ===== LOAD STOCK =====
 async function loadStock(){
-let res = await fetch(API_URL+"?action=getStock");
-products = await res.json();
+  try{
+    let res = await fetch(API_URL+"?action=getStock");
+    let data = await res.json();
 
-product.innerHTML="";
-for(let p in products){
-let op=document.createElement("option");
-op.value=p;
-op.text=p;
-product.appendChild(op);
-}
+    if(data.status==="error") throw new Error(data.message);
+
+    products = data;
+
+    product.innerHTML="";
+    for(let p in products){
+      let op=document.createElement("option");
+      op.value=p;
+      op.text=p;
+      product.appendChild(op);
+    }
+
+  }catch(e){
+    alert("โหลด stock ไม่สำเร็จ: "+e.message);
+  }
 }
 
 // ===== LOAD SALES =====
 async function loadSales(){
-let res = await fetch(API_URL+"?action=getSales");
-sales = await res.json();
-renderSales();
+  try{
+    let res = await fetch(API_URL+"?action=getSales");
+    let data = await res.json();
+
+    if(data.status==="error") throw new Error(data.message);
+
+    sales = data;
+    renderSales();
+
+  }catch(e){
+    alert("โหลด sales ไม่สำเร็จ: "+e.message);
+  }
 }
 
-// ===== DELETE (เฉพาะหน้า ไม่ลบ backend) =====
+// ===== DELETE =====
 function deleteSale(i){
-sales.splice(i,1);
-renderSales();
+  sales.splice(i,1);
+  renderSales();
 }
 
 // ===== INVENTORY =====
 function showInventory(){
-let html="<table class='table'><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
+  let html="<table class='table'><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
 
-for(let p in products){
-let s=products[p].stock;
-let min=products[p].min;
+  for(let p in products){
+    let s=products[p].stock;
+    let min=products[p].min;
 
-let statusText=s<=0?"หมด":s<=min?"ใกล้หมด":"ปกติ";
-let cls=s<=0?"status-red":s<=min?"status-yellow":"status-green";
+    let statusText=s<=0?"หมด":s<=min?"ใกล้หมด":"ปกติ";
+    let cls=s<=0?"status-red":s<=min?"status-yellow":"status-green";
 
-html+=`<tr>
-<td>${p}</td>
-<td>${s}</td>
-<td class="${cls}">${statusText}</td>
-</tr>`;
-}
+    html+=`<tr>
+      <td>${p}</td>
+      <td>${s}</td>
+      <td class="${cls}">${statusText}</td>
+    </tr>`;
+  }
 
-html+="</table>";
-inventory.innerHTML=html;
+  html+="</table>";
+  inventory.innerHTML=html;
 }
 
 // ===== INIT =====
 loadStock();
 loadSales();
-
 </script>
