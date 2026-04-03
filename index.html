@@ -184,50 +184,50 @@ let total=0;
 let itemsText="";
 let totalQty=0;
 
-// ตัดสต็อก
+// รวมข้อมูล
 cart.forEach(c=>{
-products[c.p].stock-=c.q;
-total+=c.price*c.q;
-itemsText += c.p + "(" + c.q + "), ";
-totalQty += c.q;
+  total+=c.price*c.q;
+  itemsText += c.p + " x " + c.q + "\n";
+  totalQty += c.q;
 });
 
-// 🔥 ส่งไป Google Sheet
+// 🔥 Popup สรุปก่อนขาย
+let confirmText = 
+`🧾 สรุปออเดอร์
+
+ผู้ขาย: ${user}
+อีเวนต์: ${ev}
+
+สินค้า:
+${itemsText}
+
+จำนวนรวม: ${totalQty}
+ยอดรวม: ${total} บาท
+
+ยืนยันการขายหรือไม่?`;
+
+if(!confirm(confirmText)){
+  return; // ❌ ถ้ากดยกเลิก = ไม่ทำอะไร
+}
+
+// ✅ ตัดสต็อกในหน้า (optional ถ้าย้ายไป backend แล้วไม่ต้องมี)
+cart.forEach(c=>{
+  products[c.p].stock -= c.q;
+});
+
+// ✅ ส่งข้อมูลไป Google Sheet
 await sendToSheet({
   user:user,
   event:ev,
   items:itemsText,
   qty: totalQty,
-  total: total
+  total: total,
+  cart: cart
 });
 
-sales.push({
-user,
-items:[...cart],
-total
-});
-
-cart=[];
-renderCart();
-renderSales();
-
-status.innerText="✅ บันทึกขาย + ส่ง Google Sheet สำเร็จ";
+// ✅ รีเฟรชทันทีหลังบันทึก
+location.reload();
 }
-// 🔥 รีเซ็ตหน้ากลับไปเริ่มใหม่
-cart = [];
-renderCart();
-
-// เคลียร์ input
-qty.value = "";
-price.value = "";
-username.value = "";
-
-// เลือกสินค้า default ใหม่
-product.selectedIndex = 0;
-
-// โฟกัสให้กรอกต่อทันที
-qty.focus();
-
 // ===== SALES TABLE =====
 function renderSales(){
 salesTable.innerHTML="";
