@@ -5,10 +5,22 @@
 <title>Real-time Sales & Inventory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-/* CSS เดิม ... */
+body { font-family:sans-serif; max-width:800px; margin:auto; padding:10px; }
+table { border-collapse: collapse; width:100%; margin-top:10px; }
+th,td { border:1px solid #ccc; padding:6px; text-align:left; }
+th { background:#eee; }
+input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-sizing:border-box; }
+.status-red {color:red;font-weight:bold;}
+.status-yellow {color:orange;font-weight:bold;}
+.status-green {color:green;font-weight:bold;}
+.card{border:1px solid #ccc;padding:10px;margin-bottom:10px;border-radius:5px;}
+#cart,#inventory,#salesTable{overflow-x:auto;}
+#cart div{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;padding:4px;border:1px solid #ddd;border-radius:4px;}
+#cart button{padding:2px 6px;font-size:0.9em;}
 </style>
 </head>
 <body>
+
 <div class="card">
   <h2>บันทึกยอดขาย & ตัดสต็อก</h2>
   <label>ชื่อผู้ขาย: <input id="username" placeholder="ชื่อผู้ขาย"></label><br>
@@ -54,10 +66,133 @@
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxRn6TNti42_rUuRPh32e-3PiWFAU321M-Do8hkJBB5APM4H3PWBERll2cXri9YNImLow/exec; // ใส่ URL จาก GAS ที่ deploy
+const API_URL = "https://script.google.com/macros/s/AKfycbxrx6oqyQriB-UmzrwRIJNsiNHe7XQe95f9IywLy_JLSEkmeUWz9X4z0Y3sK7HkV17BCw/exec"; // ← ใส่ URL Web App ที่ Deploy
 
-// JS โหลดสินค้า, ตะกร้า, ยอดขาย, checkout
-// ใช้โค้ด JS จากที่คุณส่งล่าสุด (ที่ผมตรวจแล้วว่า POST ถูกต้อง)
+const productSelect = document.getElementById("product");
+const qty = document.getElementById("qty");
+const price = document.getElementById("price");
+const username = document.getElementById("username");
+const eventSelect = document.getElementById("eventSelect");
+const status = document.getElementById("status");
+const inventoryDiv = document.getElementById("inventory");
+const cartDiv = document.getElementById("cart");
+
+let products = {}, cart = [], sales = [], isProcessing = false;
+
+setInterval(()=>document.getElementById("time").innerText=new Date().toLocaleString(),1000);
+
+async function loadProducts(){
+  try{
+    let res = await fetch(`${API_URL}?action=getStock`);
+    products = await res.json();
+    populateProducts();
+    showInventory();
+  }catch(e){ console.error("โหลดสินค้าไม่สำเร็จ:", e); }
+}
+
+function populateProducts(){
+  productSelect.innerHTML="";
+  for(let p in products){
+    productSelect.innerHTML += `<option value="${p}">${p} (คงเหลือ: ${products[p].stock})</option>`;
+  }
+}
+
+function showInventory(){
+  let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
+  for(let p in products){
+    let s = products[p].stock, min = products[p].min;
+    let cls = s<=0?"status-red":(s<=min?"status-yellow":"status-green");
+    let st = s<=0?"หมด":(s<=min?"ใกล้หมด":"ปกติ");
+    html += `<tr><td>${p}</td><td>${s}</td><td class="${cls}">${st}</td></tr>`;
+  }
+  inventoryDiv.innerHTML = html;
+}
+
+async function loadSales(){
+  try{
+    let res = await fetch(`${API_URL}?action=getSales`);
+    sales = await res.json();
+    renderSales();
+  }catch(e){ console.error("โหลด sales ไม่สำเร็จ:", e); }
+}
+
+function renderSales(){
+  const tbody = document.getElementById("salesTable").getElementsByTagName("tbody")[0];
+  tbody.innerHTML="";
+  let totalAll=0;
+  sales.forEach((s,i)=>{
+    let itemsText = Array.isArray(s.items)?s.items.map(x=>x.p+"("+x.q+")").join(","):s.items;
+    tbody.innerHTML+=`<tr><td>${i+1}</td><td>${s.user}</td><td>${itemsText}</td><td>${s.total}</td><td><button onclick="deleteSale(${i})">ลบ</button></td></tr>`;
+    totalAll+=Number(s.total)||0;
+  });
+  document.getElementById("totalSales").innerText = totalAll;
+  document.getElementById("totalOrders").innerText = sales.length;
+}
+
+function deleteSale(i){ sales.splice(i,1); renderSales(); }
+
+function renderCart(){
+  cartDiv.innerHTML="";
+  cart.forEach((c,i)=>{ cartDiv.innerHTML+=`<div>${c.p} x ${c.q} <button onclick="removeCart(${i})">ลบ</button></div>`; });
+}
+
+function removeCart(i){ cart.splice(i,1); renderCart(); }
+
+function addToCart(){
+  let p = productSelect.value;
+  let q = parseInt(qty.value);
+  let priceInput = price.value?parseInt(price.value):(products[p]?.price||0);
+  if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
+  if(!products[p]){ alert("ไม่พบสินค้า"); return; }
+  if(products[p].stock < q){ alert("สต็อคไม่พอ: "+p); return; }
+  let found = cart.find(c=>c.p===p);
+  if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
+  renderCart();
+  qty.value=""; price.value="";
+}
+
+async function sendToSheet(data){
+  try{
+    let res = await fetch(API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(data)
+    });
+    return await res.json();
+  }catch(e){ return {status:"error", message:"network error"}; }
+}
+
+async function checkout(){
+  if(isProcessing) return;
+  if(cart.length===0){ alert("ไม่มีสินค้า"); return; }
+  isProcessing=true;
+
+  let user = username.value||"ไม่ระบุ";
+  let ev = eventSelect.value;
+  let total=0, itemsText="", totalQty=0;
+  cart.forEach(c=>{ total+=c.price*c.q; itemsText+=`${c.p} x ${c.q}\n`; totalQty+=c.q; });
+
+  if(!confirm(`รวม ${totalQty} ชิ้น\n💰 ${total} บาท\nยืนยัน?`)){ isProcessing=false; return; }
+
+  status.innerText="⏳ กำลังบันทึก...";
+  let result = await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
+
+  if(result.status==="success"){
+    await loadProducts();
+    await loadSales();
+    cart=[]; renderCart();
+    status.innerText="✅ บันทึกสำเร็จ";
+  } else {
+    status.innerText="❌ "+(result.message||"บันทึกไม่สำเร็จ");
+  }
+
+  isProcessing=false;
+}
+
+window.addEventListener("DOMContentLoaded", async()=>{
+  await loadProducts();
+  await loadSales();
+});
 </script>
 </body>
 </html>
