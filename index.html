@@ -1,77 +1,3 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<title>Real-time Sales & Inventory</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: sans-serif; padding: 10px; max-width:800px; margin:auto; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-th { background: #eee; }
-input[type=number], input[type=text], select { padding: 4px; margin: 2px; width: calc(100% - 10px); box-sizing:border-box; }
-button { padding: 4px 10px; margin: 2px; cursor:pointer; }
-.status-red { color:red; font-weight:bold; }
-.status-yellow { color:orange; font-weight:bold; }
-.status-green { color:green; font-weight:bold; }
-.card { border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; }
-#cart, #inventory, #salesTable { overflow-x:auto; }
-#cart div { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding:4px; border:1px solid #ddd; border-radius:4px; }
-#cart button { padding:2px 6px; font-size:0.9em; }
-@media(max-width:480px){
-  input, select, button { font-size:14px; }
-  th, td { font-size:12px; padding:4px; }
-}
-</style>
-</head>
-<body>
-
-<div class="card">
-  <h2>บันทึกยอดขาย & ตัดสต็อก</h2>
-  <label>ชื่อผู้ขาย: <input id="username" type="text" placeholder="ชื่อผู้ขาย"></label><br>
-  <label>อีเวนต์:
-    <select id="eventSelect">
-      <option>สิงห์เหนือ เสือใต้ Run for Give Mini Marathon</option>
-      <option>Prachin NIGHT RUN</option>
-      <option>Defence Run 2026</option>
-      <option>DPT MINI MARATHON</option>
-    </select>
-  </label><br>
-  <label>สินค้า:
-    <select id="product"></select>
-  </label>
-  <input id="qty" type="number" placeholder="จำนวน">
-  <input id="price" type="number" placeholder="ราคา (ถ้ามี)">
-  <button onclick="addToCart()">เพิ่มลงตะกร้า</button>
-</div>
-
-<div class="card">
-  <h3>ตะกร้าสินค้า</h3>
-  <div id="cart"></div>
-  <button onclick="checkout()">บันทึกยอดขาย</button>
-  <div id="status"></div>
-</div>
-
-<div class="card">
-  <h3>ยอดขายทั้งหมด</h3>
-  <table id="salesTable">
-    <thead>
-      <tr><th>ลำดับ</th><th>ผู้ขาย</th><th>สินค้า</th><th>รวม</th><th>ลบ</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p>รวมทั้งหมด: <span id="totalSales">0</span> บาท</p>
-  <p>จำนวนคำสั่ง: <span id="totalOrders">0</span></p>
-</div>
-
-<div class="card">
-  <h3>สต็อกสินค้า</h3>
-  <button onclick="showInventory()">ดูสต็อก</button>
-  <div id="inventory"></div>
-</div>
-
-<p>เวลา: <span id="time"></span></p>
-
 <script>
 // ===== URL Google Apps Script =====
 const API_URL = "https://script.google.com/macros/s/AKfycbxxfk1ujL0IxnzWVN36Teu1CKwfxa8-zppOP9ZW6nJGlxTqtBoQ-d06XR1RUJUfZy93DQ/exec";
@@ -86,8 +12,8 @@ const status = document.getElementById("status");
 const inventoryDiv = document.getElementById("inventory");
 const cartDiv = document.getElementById("cart");
 
-// ===== ตัวเลือกสินค้า =====
-let products = {};
+// ===== ตัวแปร =====
+let products = {};  // ข้อมูลสินค้าจาก Sheet
 let cart = [];
 let sales = [];
 let isProcessing = false;
@@ -95,37 +21,24 @@ let isProcessing = false;
 // ===== นาฬิกา =====
 setInterval(()=>{ document.getElementById("time").innerText = new Date().toLocaleString(); },1000);
 
-// ===== โหลดสินค้าเรียลไทม์ =====
+// ===== โหลดสินค้าเรียลไทม์จาก Sheet =====
 async function loadProducts() {
   try {
     let res = await fetch(`${API_URL}?action=getStock`);
     let data = await res.json();
-    products = data;
-    if(Object.keys(products).length === 0){
-      // fallback hardcode
-      products = {
-        "แก้ว":{price:69,stock:100,min:50},
-        "PCM1000":{price:1290,stock:2,min:0},
-        "PEA1000":{price:1290,stock:2,min:0},
-        "PCF1000":{price:1290,stock:2,min:0},
-        "WEC1000":{price:1690,stock:4,min:2},
-        "WEI1000":{price:1690,stock:4,min:2},
-        "WER1000":{price:1690,stock:4,min:2},
-        "PCF500":{price:990,stock:100,min:50},
-        "WEC300":{price:990,stock:20,min:10},
-        "Test HP35g.":{price:99,stock:200,min:100},
-        "HP35g แบบกล่อง.":{price:99,stock:120,min:60},
-        "HP500":{price:990,stock:30,min:10}
-      };
+    if(!data || Object.keys(data).length === 0){
+      throw new Error("ไม่พบข้อมูลสินค้าจาก Sheet");
     }
+    products = data;  // ใช้ข้อมูลจาก Sheet 100%
     populateProducts();
     showInventory();
   } catch(e){
     console.error("โหลดสินค้าไม่สำเร็จ:", e);
+    status.innerText = "❌ โหลดสินค้าไม่สำเร็จ กรุณาตรวจสอบ Sheet";
   }
 }
 
-// ===== แสดง dropdown =====
+// ===== แสดง dropdown สินค้า =====
 function populateProducts(){
   productSelect.innerHTML="";
   for(let p in products){
@@ -133,7 +46,7 @@ function populateProducts(){
   }
 }
 
-// ===== แสดงสต็อก =====
+// ===== แสดงสต็อกเรียลไทม์ =====
 function showInventory() {
   let html = "<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
   for (let p in products) {
@@ -155,6 +68,7 @@ async function loadSales() {
     renderSales();
   } catch(e){
     console.error("โหลด sales ไม่สำเร็จ:", e);
+    status.innerText = "❌ โหลดยอดขายไม่สำเร็จ";
   }
 }
 
@@ -178,11 +92,6 @@ function renderSales(){
   document.getElementById("totalOrders").innerText=sales.length;
 }
 
-function deleteSale(i){
-  sales.splice(i,1);
-  renderSales();
-}
-
 // ===== ตะกร้า =====
 function renderCart(){
   cartDiv.innerHTML="";
@@ -196,6 +105,7 @@ function removeCart(i){
   renderCart();
 }
 
+// ===== เพิ่มสินค้าเข้าตะกร้า =====
 function addToCart(){
   let p = productSelect.value;
   let q = parseInt(qty.value);
@@ -262,5 +172,3 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   await loadSales();
 });
 </script>
-</body>
-</html>
