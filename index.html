@@ -64,7 +64,7 @@ input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-s
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-const API_URL="https://script.google.com/macros/s/AKfycbyXlfR3EjqZKmz61c91peph0cc7eanltv7teBFdVrDg669Rzm4BoYaOlo47D7k0_MkgPQ/exec"; // URL Web App exec
+const API_URL = "https://script.google.com/macros/s/AKfycbxnmzPUGe_knnTlkrRCPcZYim5hB32l6zO_ewewj6Y3hn-xjyit41m0yPSP3yJP3zuZrQ/exec"; // ใส่ Web App URL หลัง Deploy
 
 const productSelect=document.getElementById("product");
 const qty=document.getElementById("qty");
@@ -77,49 +77,43 @@ const cartDiv=document.getElementById("cart");
 
 let products={}, cart=[], sales=[], isProcessing=false;
 
-// นาฬิกา
 setInterval(()=>document.getElementById("time").innerText=new Date().toLocaleString(),1000);
 
-// โหลดสินค้า
 async function loadProducts(){
   try{
-    let res=await fetch(`${API_URL}?action=getStock`);
-    products=await res.json();
+    let res = await fetch(`${API_URL}?action=getStock`);
+    products = await res.json();
     populateProducts();
     showInventory();
   }catch(e){ console.error(e); }
 }
 
-// dropdown สินค้า
 function populateProducts(){
   productSelect.innerHTML="";
   for(let p in products){
-    productSelect.innerHTML+=`<option value="${p}">${p} (คงเหลือ: ${products[p].stock})</option>`;
+    productSelect.innerHTML += `<option value="${p}">${p} (คงเหลือ: ${products[p].stock})</option>`;
   }
 }
 
-// แสดงสต็อค
 function showInventory(){
   let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
   for(let p in products){
     let s=products[p].stock, min=products[p].min;
-    let cls=s<=0?"status-red":(s<=min?"status-yellow":"status-green");
-    let st=s<=0?"หมด":(s<=min?"ใกล้หมด":"ปกติ");
+    let cls = s<=0?"status-red":(s<=min?"status-yellow":"status-green");
+    let st = s<=0?"หมด":(s<=min?"ใกล้หมด":"ปกติ");
     html+=`<tr><td>${p}</td><td>${s}</td><td class="${cls}">${st}</td></tr>`;
   }
-  inventoryDiv.innerHTML=html;
+  inventoryDiv.innerHTML = html;
 }
 
-// โหลดยอดขาย
 async function loadSales(){
   try{
-    let res=await fetch(`${API_URL}?action=getSales`);
-    sales=await res.json();
+    let res = await fetch(`${API_URL}?action=getSales`);
+    sales = await res.json();
     renderSales();
   }catch(e){ console.error(e); }
 }
 
-// แสดงยอดขาย
 function renderSales(){
   const tbody=document.getElementById("salesTable").getElementsByTagName("tbody")[0];
   tbody.innerHTML="";
@@ -135,29 +129,28 @@ function renderSales(){
 
 function deleteSale(i){ sales.splice(i,1); renderSales(); }
 
-// ตะกร้า
 function renderCart(){
   cartDiv.innerHTML="";
-  cart.forEach((c,i)=>{ cartDiv.innerHTML+=`<div>${c.p} x ${c.q} <button onclick="removeCart(${i})">ลบ</button></div>`; });
+  cart.forEach((c,i)=>{ cartDiv.innerHTML += `<div>${c.p} x ${c.q} <button onclick="removeCart(${i})">ลบ</button></div>`; });
 }
 function removeCart(i){ cart.splice(i,1); renderCart(); }
 
 function addToCart(){
-  let p=productSelect.value;
-  let q=parseInt(qty.value);
-  let priceInput=price.value?parseInt(price.value):(products[p]?.price||0);
-  if(!q||q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
+  let p = productSelect.value;
+  let q = parseInt(qty.value);
+  let priceInput = price.value ? parseInt(price.value) : (products[p]?.price||0);
+  if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
   if(!products[p]){ alert("ไม่พบสินค้า"); return; }
-  if(products[p].stock<q){ alert("สต็อคไม่พอ: "+p); return; }
-  let found=cart.find(c=>c.p===p);
-  if(found){ found.q+=q; } else { cart.push({p,q,price:priceInput}); }
+  if(products[p].stock < q){ alert("สต็อคไม่พอ: "+p); return; }
+  let found = cart.find(c=>c.p===p);
+  if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
   renderCart();
   qty.value=""; price.value="";
 }
 
 async function sendToSheet(data){
   try{
-    let res=await fetch(API_URL,{
+    let res = await fetch(API_URL,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify(data)
@@ -181,7 +174,7 @@ async function checkout(){
   }
 
   status.innerText="⏳ กำลังบันทึก...";
-  let result=await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
+  let result = await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
 
   if(result.status==="success"){
     await loadProducts();
@@ -201,5 +194,6 @@ window.addEventListener("DOMContentLoaded", async()=>{
   await loadSales();
 });
 </script>
+
 </body>
 </html>
