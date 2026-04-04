@@ -5,7 +5,7 @@
 <title>Real-time Sales & Inventory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { font-family:sans-serif; max-width:800px; margin:auto; padding:10px; }
+body { font-family:sans-serif; max-width:900px; margin:auto; padding:10px; }
 table { border-collapse: collapse; width:100%; margin-top:10px; }
 th,td { border:1px solid #ccc; padding:6px; text-align:left; }
 th { background:#eee; }
@@ -22,7 +22,7 @@ input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-s
 <body>
 
 <div class="card">
-  <h2>บันทึกยอดขาย & ตัดสต็อก</h2>
+  <h2>บันทึกยอดขาย & ตัดสต็อค</h2>
   <label>ชื่อผู้ขาย: <input id="username" placeholder="ชื่อผู้ขาย"></label><br>
   <label>อีเวนต์:
     <select id="eventSelect">
@@ -59,14 +59,14 @@ input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-s
 
 <div class="card">
   <h3>สต็อกสินค้า</h3>
-  <button onclick="showInventory()">ดูสต็อก</button>
+  <button onclick="showInventory()">ดูสต็อค</button>
   <div id="inventory"></div>
 </div>
 
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxrx6oqyQriB-UmzrwRIJNsiNHe7XQe95f9IywLy_JLSEkmeUWz9X4z0Y3sK7HkV17BCw/exec"; // ← ใส่ URL Web App ที่ Deploy
+const API_URL = "https://script.google.com/macros/s/AKfycby-YgTO8ci7q9FEO-bFlSGPH0n5C8iVkA-Qp5pc-vn8tdvYs3RmRVeLdUjb-xm3cJsq/exec"; // ✅ ใส่ URL Web App ของคุณ
 
 const productSelect = document.getElementById("product");
 const qty = document.getElementById("qty");
@@ -79,8 +79,10 @@ const cartDiv = document.getElementById("cart");
 
 let products = {}, cart = [], sales = [], isProcessing = false;
 
+// นาฬิกา
 setInterval(()=>document.getElementById("time").innerText=new Date().toLocaleString(),1000);
 
+// โหลดสินค้าเรียลไทม์
 async function loadProducts(){
   try{
     let res = await fetch(`${API_URL}?action=getStock`);
@@ -97,6 +99,7 @@ function populateProducts(){
   }
 }
 
+// แสดงสต็อค
 function showInventory(){
   let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
   for(let p in products){
@@ -108,6 +111,7 @@ function showInventory(){
   inventoryDiv.innerHTML = html;
 }
 
+// โหลดยอดขาย
 async function loadSales(){
   try{
     let res = await fetch(`${API_URL}?action=getSales`);
@@ -125,17 +129,17 @@ function renderSales(){
     tbody.innerHTML+=`<tr><td>${i+1}</td><td>${s.user}</td><td>${itemsText}</td><td>${s.total}</td><td><button onclick="deleteSale(${i})">ลบ</button></td></tr>`;
     totalAll+=Number(s.total)||0;
   });
-  document.getElementById("totalSales").innerText = totalAll;
-  document.getElementById("totalOrders").innerText = sales.length;
+  document.getElementById("totalSales").innerText=totalAll;
+  document.getElementById("totalOrders").innerText=sales.length;
 }
 
 function deleteSale(i){ sales.splice(i,1); renderSales(); }
 
+// ตะกร้า
 function renderCart(){
   cartDiv.innerHTML="";
   cart.forEach((c,i)=>{ cartDiv.innerHTML+=`<div>${c.p} x ${c.q} <button onclick="removeCart(${i})">ลบ</button></div>`; });
 }
-
 function removeCart(i){ cart.splice(i,1); renderCart(); }
 
 function addToCart(){
@@ -145,8 +149,9 @@ function addToCart(){
   if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
   if(!products[p]){ alert("ไม่พบสินค้า"); return; }
   if(products[p].stock < q){ alert("สต็อคไม่พอ: "+p); return; }
+
   let found = cart.find(c=>c.p===p);
-  if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
+  if(found){ found.q+=q; } else { cart.push({p,q,price:priceInput}); }
   renderCart();
   qty.value=""; price.value="";
 }
@@ -159,7 +164,7 @@ async function sendToSheet(data){
       body:JSON.stringify(data)
     });
     return await res.json();
-  }catch(e){ return {status:"error", message:"network error"}; }
+  }catch(e){ return {status:"error",message:"network error"}; }
 }
 
 async function checkout(){
@@ -172,7 +177,9 @@ async function checkout(){
   let total=0, itemsText="", totalQty=0;
   cart.forEach(c=>{ total+=c.price*c.q; itemsText+=`${c.p} x ${c.q}\n`; totalQty+=c.q; });
 
-  if(!confirm(`รวม ${totalQty} ชิ้น\n💰 ${total} บาท\nยืนยัน?`)){ isProcessing=false; return; }
+  if(!confirm(`🧾 สรุป\n\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\n\nยืนยัน?`)){
+    isProcessing=false; return;
+  }
 
   status.innerText="⏳ กำลังบันทึก...";
   let result = await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
@@ -180,7 +187,8 @@ async function checkout(){
   if(result.status==="success"){
     await loadProducts();
     await loadSales();
-    cart=[]; renderCart();
+    cart=[];
+    renderCart();
     status.innerText="✅ บันทึกสำเร็จ";
   } else {
     status.innerText="❌ "+(result.message||"บันทึกไม่สำเร็จ");
@@ -189,6 +197,7 @@ async function checkout(){
   isProcessing=false;
 }
 
+// INIT
 window.addEventListener("DOMContentLoaded", async()=>{
   await loadProducts();
   await loadSales();
