@@ -1,5 +1,67 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Real-time Sales & Inventory</title>
+<style>
+body { font-family: sans-serif; padding: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+th { background: #eee; }
+input[type=number], input[type=text], select { padding: 4px; margin: 2px; }
+button { padding: 4px 10px; margin: 2px; }
+.status-red { color:red; font-weight:bold; }
+.status-yellow { color:orange; font-weight:bold; }
+.status-green { color:green; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h2>บันทึกยอดขาย & ตัดสต็อก</h2>
+
+<label>ชื่อผู้ขาย: <input id="username" type="text" placeholder="ชื่อผู้ขาย"></label><br>
+<label>อีเวนต์: <input id="event" type="text" placeholder="อีเวนต์"></label><br>
+<label>สินค้า:
+  <select id="product"></select>
+</label>
+<input id="qty" type="number" placeholder="จำนวน">
+<input id="price" type="number" placeholder="ราคา (ถ้ามี)">
+<button onclick="addToCart()">เพิ่มลงตะกร้า</button>
+
+<h3>ตะกร้าสินค้า</h3>
+<div id="cart"></div>
+<button onclick="checkout()">บันทึกยอดขาย</button>
+
+<div id="status"></div>
+
+<h3>ยอดขายทั้งหมด</h3>
+<table id="salesTable">
+<thead>
+<tr><th>ลำดับ</th><th>ผู้ขาย</th><th>สินค้า</th><th>รวม</th><th>ลบ</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+<p>รวมทั้งหมด: <span id="totalSales">0</span> บาท</p>
+<p>จำนวนคำสั่ง: <span id="totalOrders">0</span></p>
+
+<h3>สต็อกสินค้า</h3>
+<div id="inventory"></div>
+
+<p>เวลา: <span id="time"></span></p>
+
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwkHj712UTdvlIyxTB6_RXqQGJzISM4tt4t_HSqrTwtZ-sgzA0Kl0Dahi400jQd13TsAA/exec";
+document.addEventListener("DOMContentLoaded", ()=> {
+
+const API_URL = "https://script.google.com/macros/s/AKfycbwkHj712UTdvlIyxTB6_RXqGJzISM4tt4t_HSqrTwtZ-sgzA0Kl0Dahi400jQd13TsAA/exec";
+
+const product = document.getElementById("product");
+const qty = document.getElementById("qty");
+const price = document.getElementById("price");
+const username = document.getElementById("username");
+const eventInput = document.getElementById("event");
+const status = document.getElementById("status");
+const inventory = document.getElementById("inventory");
+const cartDiv = document.getElementById("cart");
 
 let products = {};
 let cart = [];
@@ -41,15 +103,9 @@ function addToCart(){
 
 // ===== CART =====
 function renderCart(){
-  let cartDiv = document.getElementById("cart");
   cartDiv.innerHTML = "";
-
   cart.forEach((c,i)=>{
-    cartDiv.innerHTML += `
-    <div>
-      ${c.p} x ${c.q}
-      <button onclick="removeCart(${i})">ลบ</button>
-    </div>`;
+    cartDiv.innerHTML += `<div>${c.p} x ${c.q} <button onclick="removeCart(${i})">ลบ</button></div>`;
   });
 }
 
@@ -63,15 +119,13 @@ async function sendToSheet(data){
   try{
     let controller = new AbortController();
     setTimeout(()=>controller.abort(),10000);
-
     let res = await fetch(API_URL,{
       method:"POST",
+      headers: {"Content-Type":"application/json"},
       body: JSON.stringify(data),
       signal: controller.signal
     });
-
     return await res.json();
-
   }catch(e){
     return {status:"error", message:"network error"};
   }
@@ -79,7 +133,6 @@ async function sendToSheet(data){
 
 // ===== CHECKOUT =====
 async function checkout(){
-
   if(isProcessing) return;
   isProcessing = true;
 
@@ -89,7 +142,6 @@ async function checkout(){
     return;
   }
 
-  // เช็ค stock
   for(let c of cart){
     if(!products[c.p] || products[c.p].stock < c.q){
       alert("สต็อกไม่พอ: " + c.p);
@@ -99,7 +151,7 @@ async function checkout(){
   }
 
   let user = username.value || "ไม่ระบุ";
-  let ev = event.value;
+  let ev = eventInput.value;
 
   let total = 0;
   let itemsText = "";
@@ -117,57 +169,44 @@ async function checkout(){
   }
 
   status.innerText = "⏳ กำลังบันทึก...";
-
   let result = await sendToSheet({
     user:user,
     event:ev,
     items:itemsText,
-    qty: totalQty,
-    total: total,
-    cart: cart
+    qty:totalQty,
+    total:total,
+    cart:cart
   });
 
   if(result.status==="success"){
-
     await loadStock();
     await loadSales();
-
     cart=[];
     renderCart();
-
     qty.value="";
     price.value="";
-
     status.innerText="✅ บันทึกสำเร็จ";
-
   }else{
     status.innerText="❌ "+(result.message || "บันทึกไม่สำเร็จ");
   }
-
   isProcessing = false;
 }
 
 // ===== SALES TABLE =====
 function renderSales(){
-  let salesTable = document.getElementById("salesTable");
+  let salesTable = document.getElementById("salesTable").getElementsByTagName("tbody")[0];
   salesTable.innerHTML = "";
-
   let total = 0;
 
   sales.forEach((s,i)=>{
-    total += Number(s.total) || 0;
-
-    let itemsText = Array.isArray(s.items)
-      ? s.items.map(x=>x.p+"("+x.q+")").join(",")
-      : s.items;
-
-    salesTable.innerHTML += `
-    <tr>
+    total += Number(s.total)||0;
+    let itemsText = Array.isArray(s.items) ? s.items.map(x=>x.p+"("+x.q+")").join(",") : s.items;
+    salesTable.innerHTML += `<tr>
       <td>${i+1}</td>
       <td>${s.user}</td>
       <td>${itemsText}</td>
       <td>${s.total}</td>
-      <td><button onclick="deleteSale(${i})" class="danger">ลบ</button></td>
+      <td><button onclick="deleteSale(${i})">ลบ</button></td>
     </tr>`;
   });
 
@@ -180,9 +219,7 @@ async function loadStock(){
   try{
     let res = await fetch(API_URL+"?action=getStock");
     let data = await res.json();
-
     if(data.status==="error") throw new Error(data.message);
-
     products = data;
 
     product.innerHTML="";
@@ -192,6 +229,8 @@ async function loadStock(){
       op.text=p;
       product.appendChild(op);
     }
+
+    showInventory();
 
   }catch(e){
     alert("โหลด stock ไม่สำเร็จ: "+e.message);
@@ -203,18 +242,15 @@ async function loadSales(){
   try{
     let res = await fetch(API_URL+"?action=getSales");
     let data = await res.json();
-
     if(data.status==="error") throw new Error(data.message);
-
     sales = data;
     renderSales();
-
   }catch(e){
     alert("โหลด sales ไม่สำเร็จ: "+e.message);
   }
 }
 
-// ===== DELETE =====
+// ===== DELETE SALE =====
 function deleteSale(i){
   sales.splice(i,1);
   renderSales();
@@ -222,22 +258,14 @@ function deleteSale(i){
 
 // ===== INVENTORY =====
 function showInventory(){
-  let html="<table class='table'><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
-
+  let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
   for(let p in products){
     let s=products[p].stock;
     let min=products[p].min;
-
     let statusText=s<=0?"หมด":s<=min?"ใกล้หมด":"ปกติ";
     let cls=s<=0?"status-red":s<=min?"status-yellow":"status-green";
-
-    html+=`<tr>
-      <td>${p}</td>
-      <td>${s}</td>
-      <td class="${cls}">${statusText}</td>
-    </tr>`;
+    html+=`<tr><td>${p}</td><td>${s}</td><td class="${cls}">${statusText}</td></tr>`;
   }
-
   html+="</table>";
   inventory.innerHTML=html;
 }
@@ -245,4 +273,8 @@ function showInventory(){
 // ===== INIT =====
 loadStock();
 loadSales();
+
+});
 </script>
+</body>
+</html>
