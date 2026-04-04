@@ -66,9 +66,7 @@ button { padding: 4px 10px; margin: 2px; }
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-document.addEventListener("DOMContentLoaded", async ()=> {
-
-const API_URL = "https://script.google.com/macros/s/AKfycbwkHj712UTdvlIyxTB6_RXqGJzISM4tt4t_HSqrTwtZ-sgzA0Kl0Dahi400jQd13TsAA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwjbQudxZohDRIggfZkv2aPV66xeJnEtqckw5sLQWE2ff_M1p-Ryg7NAkIdzpJPguDogg/exec";
 
 const productSelect = document.getElementById("product");
 const qty = document.getElementById("qty");
@@ -88,15 +86,15 @@ let isProcessing = false;
 setInterval(()=>{ document.getElementById("time").innerText = new Date().toLocaleString(); },1000);
 
 // ===== LOAD STOCK =====
-async function loadStock(){
-  try{
-    let res = await fetch(API_URL+"?action=getStock");
+async function loadStock() {
+  try {
+    let res = await fetch(`${API_URL}?action=getStock`);
     let data = await res.json();
     products = data;
     populateProducts();
     showInventory();
-  }catch(e){
-    alert("โหลด stock ไม่สำเร็จ: "+e.message);
+  } catch(e) {
+    alert("โหลด stock ไม่สำเร็จ: " + e.message);
   }
 }
 
@@ -138,18 +136,16 @@ function removeCart(i){
 }
 
 // ===== CHECKOUT =====
-async function sendToSheet(data){
-  try{
-    let controller = new AbortController();
-    setTimeout(()=>controller.abort(),10000);
-    let res = await fetch(API_URL,{
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(data),
-      signal: controller.signal
+async function sendToSheet(data) {
+  try {
+    let res = await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
     });
+
     return await res.json();
-  }catch(e){
+  } catch(e) {
     return {status:"error", message:"network error"};
   }
 }
@@ -186,13 +182,15 @@ async function checkout(){
 }
 
 // ===== LOAD SALES =====
-async function loadSales(){
-  try{
-    let res = await fetch(API_URL+"?action=getSales");
+async function loadSales() {
+  try {
+    let res = await fetch(`${API_URL}?action=getSales`);
     let data = await res.json();
-    sales = Array.isArray(data) ? data : [];
+    sales = data;
     renderSales();
-  }catch(e){ alert("โหลด sales ไม่สำเร็จ: "+e.message); }
+  } catch(e) {
+    alert("โหลด sales ไม่สำเร็จ: " + e.message);
+  }
 }
 
 function renderSales(){
@@ -220,23 +218,22 @@ function deleteSale(i){
 }
 
 // ===== INVENTORY =====
-function showInventory(){
-  let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
-  for(let p in products){
-    let s=products[p].stock;
-    let min=products[p].min;
-    let cls=s<=0?"status-red":s<=min?"status-yellow":"status-green";
-    let statusText=s<=0?"หมด":s<=min?"ใกล้หมด":"ปกติ";
-    html+=`<tr><td>${p}</td><td>${s}</td><td class="${cls}">${statusText}</td></tr>`;
+function showInventory() {
+  let html = "<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
+  for (let p in products) {
+    let s = products[p].stock;
+    let min = products[p].min;
+    let statusText = s <= 0 ? "หมด" : s <= min ? "ใกล้หมด" : "ปกติ";
+    let cls = s <= 0 ? "status-red" : s <= min ? "status-yellow" : "status-green";
+    html += `<tr><td>${p}</td><td>${s}</td><td class="${cls}">${statusText}</td></tr>`;
   }
-  html+="</table>";
-  inventoryDiv.innerHTML=html;
+  inventoryDiv.innerHTML = html;
 }
 
 // ===== INIT =====
-await loadStock();
-await loadSales();
-
+window.addEventListener("DOMContentLoaded", async ()=>{
+  await loadStock();
+  await loadSales();
 });
 </script>
 </body>
