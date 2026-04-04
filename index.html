@@ -215,20 +215,16 @@ function renderSales(){
 }
 
 // ===== LOAD STOCK =====
-async function loadStock(){
-  try{
-    let res = await fetch(API_URL+"?action=getStock");
+async function loadStock() {
+  try {
+    let res = await fetch("https://script.google.com/macros/s/AKfycbwNDVdAYp65mNUaGyeboARWBjHA8821_PHCFAK6LZkQm_686LDsvpxjG5kBiFF-JQexvw/exec?action=getStock");
     let data = await res.json();
-    if(data.status==="error") throw new Error(data.message);
-    products = data;
-
-    product.innerHTML="";
-    for(let p in products){
-      let op=document.createElement("option");
-      op.value=p;
-      op.text=p;
-      product.appendChild(op);
-    }
+    console.log("Stock:", data);
+    return data;
+  } catch(e) {
+    console.error("โหลด stock ไม่สำเร็จ:", e);
+  }
+}
 
     showInventory();
 
