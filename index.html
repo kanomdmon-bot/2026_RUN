@@ -3,113 +3,99 @@
 <head>
 <meta charset="UTF-8">
 <title>Real-time Sales & Inventory</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body { font-family: sans-serif; padding: 10px; max-width:800px; margin:auto; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-th { background: #eee; }
-input[type=number], input[type=text], select { padding: 4px; margin: 2px; width: calc(100% - 10px); box-sizing:border-box; }
-button { padding: 4px 10px; margin: 2px; cursor:pointer; }
-.status-red { color:red; font-weight:bold; }
-.status-yellow { color:orange; font-weight:bold; }
-.status-green { color:green; font-weight:bold; }
-.card { border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; }
-#cart, #inventory, #salesTable { overflow-x:auto; }
-#cart div { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding:4px; border:1px solid #ddd; border-radius:4px; }
-#cart button { padding:2px 6px; font-size:0.9em; }
-@media(max-width:480px){
-  input, select, button { font-size:14px; }
-  th, td { font-size:12px; padding:4px; }
-}
+body{font-family:sans-serif;padding:10px;max-width:800px;margin:auto;}
+table{border-collapse:collapse;width:100%;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:6px;text-align:left;}
+th{background:#eee;}
+input,select,button{padding:4px;margin:2px;width:calc(100% - 10px);box-sizing:border-box;}
+button{cursor:pointer;}
+.status-red{color:red;font-weight:bold;}
+.status-yellow{color:orange;font-weight:bold;}
+.status-green{color:green;font-weight:bold;}
+.card{border:1px solid #ccc;padding:10px;margin-bottom:10px;border-radius:5px;}
+#cart div{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;padding:4px;border:1px solid #ddd;border-radius:4px;}
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h2>บันทึกยอดขาย & ตัดสต็อก</h2>
-  <label>ชื่อผู้ขาย: <input id="username" type="text" placeholder="ชื่อผู้ขาย"></label><br>
-  <label>อีเวนต์:
-    <select id="eventSelect">
-      <option>สิงห์เหนือ เสือใต้ Run for Give Mini Marathon</option>
-      <option>Prachin NIGHT RUN</option>
-      <option>Defence Run 2026</option>
-      <option>DPT MINI MARATHON</option>
-    </select>
-  </label><br>
-  <label>สินค้า:
-    <select id="product"></select>
-  </label>
-  <input id="qty" type="number" placeholder="จำนวน">
-  <input id="price" type="number" placeholder="ราคา (ถ้ามี)">
-  <button onclick="addToCart()">เพิ่มลงตะกร้า</button>
+<h2>บันทึกยอดขาย & ตัดสต็อก</h2>
+<label>ชื่อผู้ขาย: <input id="username" type="text" placeholder="ชื่อผู้ขาย"></label><br>
+<label>อีเวนต์:
+  <select id="eventSelect">
+    <option>สิงห์เหนือ เสือใต้ Run for Give Mini Marathon</option>
+    <option>Prachin NIGHT RUN</option>
+    <option>Defence Run 2026</option>
+    <option>DPT MINI MARATHON</option>
+  </select>
+</label><br>
+<label>สินค้า: <select id="product"></select></label>
+<input id="qty" type="number" placeholder="จำนวน">
+<input id="price" type="number" placeholder="ราคา (ถ้ามี)">
+<button onclick="addToCart()">เพิ่มลงตะกร้า</button>
 </div>
 
 <div class="card">
-  <h3>ตะกร้าสินค้า</h3>
-  <div id="cart"></div>
-  <button onclick="checkout()">บันทึกยอดขาย</button>
-  <div id="status"></div>
+<h3>ตะกร้าสินค้า</h3>
+<div id="cart"></div>
+<button onclick="checkout()">บันทึกยอดขาย</button>
+<div id="status"></div>
 </div>
 
 <div class="card">
-  <h3>ยอดขายทั้งหมด</h3>
-  <table id="salesTable">
-    <thead>
-      <tr><th>ลำดับ</th><th>ผู้ขาย</th><th>สินค้า</th><th>รวม</th><th>ลบ</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p>รวมทั้งหมด: <span id="totalSales">0</span> บาท</p>
-  <p>จำนวนคำสั่ง: <span id="totalOrders">0</span></p>
+<h3>ยอดขายทั้งหมด</h3>
+<table id="salesTable">
+<thead>
+<tr><th>ลำดับ</th><th>ผู้ขาย</th><th>สินค้า</th><th>รวม</th><th>ลบ</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+<p>รวมทั้งหมด: <span id="totalSales">0</span> บาท</p>
+<p>จำนวนคำสั่ง: <span id="totalOrders">0</span></p>
 </div>
 
 <div class="card">
-  <h3>สต็อกสินค้า</h3>
-  <button onclick="showInventory()">ดูสต็อก</button>
-  <div id="inventory"></div>
+<h3>สต็อกสินค้า</h3>
+<button onclick="showInventory()">ดูสต็อก</button>
+<div id="inventory"></div>
 </div>
 
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-// ===== URL Google Apps Script =====
-const API_URL = "https://script.google.com/macros/s/AKfycbyonvEiFxuNxTwqLmknRZUfQdBNxjD6Huh2xlnMWuyxZl7uIR8HS5o515xTCYfZkgM-0Q/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxxfk1ujL0IxnzWVN36Teu1CKwfxa8-zppOP9ZW6nJGlxTqtBoQ-d06XR1RUJUfZy93DQ/exec";
+let products = {};
+let cart = [];
+let sales = [];
+let isProcessing=false;
 
-// ===== DOM Elements =====
+// DOM
 const productSelect = document.getElementById("product");
 const qty = document.getElementById("qty");
 const price = document.getElementById("price");
 const username = document.getElementById("username");
 const eventSelect = document.getElementById("eventSelect");
+const cartDiv = document.getElementById("cart");
 const status = document.getElementById("status");
 const inventoryDiv = document.getElementById("inventory");
-const cartDiv = document.getElementById("cart");
 
-// ===== ตัวเลือกสินค้าเริ่มต้น =====
-let products = {
-  "แก้ว":{price:69,stock:100,min:50},
-  "PCM1000":{price:1290,stock:2,min:0},
-  "PEA1000":{price:1290,stock:2,min:0},
-  "PCF1000":{price:1290,stock:2,min:0},
-  "WEC1000":{price:1690,stock:4,min:2},
-  "WEI1000":{price:1690,stock:4,min:2},
-  "WER1000":{price:1690,stock:4,min:2},
-  "PCF500":{price:990,stock:100,min:50},
-  "WEC300":{price:990,stock:20,min:10},
-  "Test HP35g.":{price:99,stock:200,min:100},
-  "HP35g แบบกล่อง.":{price:99,stock:120,min:60},
-  "HP500":{price:990,stock:30,min:10}
-};
-
-let cart = [];
-let sales = [];
-let isProcessing = false;
-
-// ===== นาฬิกา =====
 setInterval(()=>{ document.getElementById("time").innerText = new Date().toLocaleString(); },1000);
 
-// ===== แสดง dropdown =====
+async function loadStock(){
+  let res = await fetch(`${API_URL}?action=getStock`);
+  let data = await res.json();
+  products = data;
+  populateProducts();
+  showInventory();
+}
+
+async function loadSales(){
+  let res = await fetch(`${API_URL}?action=getSales`);
+  sales = await res.json();
+  renderSales();
+}
+
 function populateProducts(){
   productSelect.innerHTML="";
   for(let p in products){
@@ -117,72 +103,17 @@ function populateProducts(){
   }
 }
 
-// ===== แสดงสต็อก =====
-function showInventory() {
-  let html = "<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
-  for (let p in products) {
-    let s = products[p].stock;
-    let min = products[p].min;
-    let statusText = s <= 0 ? "หมด" : s <= min ? "ใกล้หมด" : "ปกติ";
-    let cls = s <= 0 ? "status-red" : s <= min ? "status-yellow" : "status-green";
-    html += `<tr><td>${p}</td><td>${s}</td><td class="${cls}">${statusText}</td></tr>`;
+function showInventory(){
+  let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
+  for(let p in products){
+    let s=products[p].stock, min=products[p].min;
+    let cls=s<=0?"status-red":s<=min?"status-yellow":"status-green";
+    let text=s<=0?"หมด":s<=min?"ใกล้หมด":"ปกติ";
+    html+=`<tr><td>${p}</td><td>${s}</td><td class="${cls}">${text}</td></tr>`;
   }
-  inventoryDiv.innerHTML = html;
+  inventoryDiv.innerHTML=html;
 }
 
-// ===== โหลดสต็อกจาก GAS =====
-async function loadStock() {
-  try {
-    let res = await fetch(`${API_URL}?action=getStock`);
-    let data = await res.json();
-    products = {...products, ...data};
-    populateProducts();
-    showInventory();
-  } catch(e) {
-    console.log("โหลด stock ไม่สำเร็จ:", e);
-    populateProducts();
-    showInventory();
-  }
-}
-
-// ===== โหลดยอดขาย =====
-async function loadSales() {
-  try {
-    let res = await fetch(`${API_URL}?action=getSales`);
-    let data = await res.json();
-    sales = data;
-    renderSales();
-  } catch(e) {
-    console.log("โหลด sales ไม่สำเร็จ:", e);
-  }
-}
-
-// ===== แสดงยอดขาย =====
-function renderSales(){
-  let tbody = document.getElementById("salesTable").getElementsByTagName("tbody")[0];
-  tbody.innerHTML="";
-  let totalAll=0;
-  sales.forEach((s,i)=>{
-    let itemsText = Array.isArray(s.items) ? s.items.map(x=>x.p+"("+x.q+")").join(",") : s.items;
-    tbody.innerHTML += `<tr>
-      <td>${i+1}</td>
-      <td>${s.user}</td>
-      <td>${itemsText}</td>
-      <td>${s.total}</td>
-      <td><button onclick="deleteSale(${i})">ลบ</button></td>
-    </tr>`;
-    totalAll+=Number(s.total)||0;
-  });
-  document.getElementById("totalSales").innerText=totalAll;
-  document.getElementById("totalOrders").innerText=sales.length;
-}
-
-function deleteSale(i){
-  sales.splice(i,1);
-  renderSales();
-}
-
-// ===== ตะกร้า =====
 function renderCart(){
   cartDiv.innerHTML="";
   cart.forEach((c,i)=>{
@@ -190,75 +121,63 @@ function renderCart(){
   });
 }
 
-function removeCart(i){
-  cart.splice(i,1);
-  renderCart();
-}
+function removeCart(i){ cart.splice(i,1); renderCart(); }
 
 function addToCart(){
-  let p = productSelect.value;
-  let q = parseInt(qty.value);
-  let priceInput = price.value ? parseInt(price.value) : (products[p]?.price || 0);
+  let p=productSelect.value;
+  let q=parseInt(qty.value);
+  let pr=price.value?parseInt(price.value):products[p].price;
   if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
-  if(!products[p]){ alert("ไม่พบสินค้า"); return; }
-  if(products[p].stock < q){ alert("สต็อกไม่พอ: "+p); return; }
-
-  let found = cart.find(c=>c.p===p);
-  if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
-
-  renderCart();
-  qty.value=""; price.value="";
+  if(products[p].stock < q){ alert("สต็อกไม่พอ"); return; }
+  let f=cart.find(x=>x.p===p);
+  if(f) f.q+=q; else cart.push({p,q,price:pr});
+  renderCart(); qty.value=""; price.value="";
 }
 
-// ===== บันทึกยอดขาย =====
-async function sendToSheet(data) {
-  try {
-    let res = await fetch(API_URL, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(data)
-    });
-    return await res.json();
-  } catch(e) {
-    return {status:"error", message:"network error"};
-  }
+function renderSales(){
+  let tbody=document.getElementById("salesTable").getElementsByTagName("tbody")[0];
+  tbody.innerHTML="";
+  let totalAll=0;
+  sales.forEach((s,i)=>{
+    let itemsText=Array.isArray(s.items)?s.items.map(x=>x.p+"("+x.q+")").join(","):s.items;
+    tbody.innerHTML += `<tr>
+      <td>${i+1}</td>
+      <td>${s.user}</td>
+      <td>${itemsText}</td>
+      <td>${s.total}</td>
+      <td></td>
+    </tr>`;
+    totalAll+=Number(s.total)||0;
+  });
+  document.getElementById("totalSales").innerText=totalAll;
+  document.getElementById("totalOrders").innerText=sales.length;
 }
 
 async function checkout(){
-  if(isProcessing) return;
-  if(cart.length===0){ alert("ไม่มีสินค้า"); return; }
+  if(isProcessing || cart.length===0) return;
   isProcessing=true;
-
-  let user = username.value || "ไม่ระบุ";
-  let ev = eventSelect.value;
-
-  let total=0, itemsText="", totalQty=0;
-  cart.forEach(c=>{ total+=c.price*c.q; itemsText+=`${c.p} x ${c.q}\n`; totalQty+=c.q; });
-
-  if(!confirm(`🧾 สรุป\n\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\n\nยืนยัน?`)){
-    isProcessing=false; return;
-  }
-
+  let user=username.value||"ไม่ระบุ";
+  let ev=eventSelect.value;
+  let total=0,itemsText="",totalQty=0;
+  cart.forEach(c=>{ total+=c.q*c.price; itemsText+=`${c.p} x ${c.q}\n`; totalQty+=c.q; });
+  if(!confirm(`สรุป\n${itemsText}\nรวม ${totalQty} ชิ้น\n💰 ${total} บาท\nยืนยัน?`)){isProcessing=false;return;}
   status.innerText="⏳ กำลังบันทึก...";
-  let result = await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
-
+  let res=await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({cart,user,event:ev,items:itemsText,total,qty:totalQty})
+  });
+  let result=await res.json();
   if(result.status==="success"){
     await loadStock();
     await loadSales();
-    cart=[];
-    renderCart();
+    cart=[]; renderCart();
     status.innerText="✅ บันทึกสำเร็จ";
-  } else {
-    status.innerText="❌ "+(result.message||"บันทึกไม่สำเร็จ");
-  }
-
+  } else status.innerText="❌ "+(result.message||"บันทึกไม่สำเร็จ");
   isProcessing=false;
 }
 
-// ===== INIT =====
 window.addEventListener("DOMContentLoaded", async ()=>{
-  populateProducts();
-  showInventory();
   await loadStock();
   await loadSales();
 });
