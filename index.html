@@ -32,7 +32,23 @@ input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-s
   <option>DPT MINI MARATHON</option>
 </select>
 </label><br>
-<label>สินค้า: <select id="product"></select></label>
+<label>สินค้า: 
+<select id="product">
+  <option>แก้ว</option>
+  <option>PCM1000</option>
+  <option>PEA1000</option>
+  <option>PCF1000</option>
+  <option>WEC1000</option>
+  <option>WEI1000</option>
+  <option>WER1000</option>
+  <option>WEG1000</option>
+  <option>PCF500</option>
+  <option>WEC300</option>
+  <option>Test HP35g.</option>
+  <option>HP35g แบบกล่อง</option>
+  <option>HP500</option>
+</select>
+</label>
 <input id="qty" type="number" placeholder="จำนวน">
 <input id="price" type="number" placeholder="ราคา (ถ้ามี)">
 <button onclick="addToCart()">เพิ่มลงตะกร้า</button>
@@ -57,14 +73,13 @@ input, select, button { padding:4px; margin:2px; width: calc(100% - 10px); box-s
 
 <div class="card">
 <h3>สต็อกสินค้า</h3>
-<button onclick="showInventory()">ดูสต็อค</button>
 <div id="inventory"></div>
 </div>
 
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxnmzPUGe_knnTlkrRCPcZYim5hB32l6zO_ewewj6Y3hn-xjyit41m0yPSP3yJP3zuZrQ/exec"; // ใส่ Web App URL หลัง Deploy
+const API_URL = "https://script.google.com/macros/s/AKfycbyVy6HILQ_tggKvZjlb7VrzFFpegCezg95sfbx5j0LmXIBfuyh_rdrcgh3esoPJW6_10w/exec";
 
 const productSelect=document.getElementById("product");
 const qty=document.getElementById("qty");
@@ -83,25 +98,18 @@ async function loadProducts(){
   try{
     let res = await fetch(`${API_URL}?action=getStock`);
     products = await res.json();
-    populateProducts();
     showInventory();
   }catch(e){ console.error(e); }
 }
 
-function populateProducts(){
-  productSelect.innerHTML="";
-  for(let p in products){
-    productSelect.innerHTML += `<option value="${p}">${p} (คงเหลือ: ${products[p].stock})</option>`;
-  }
-}
-
 function showInventory(){
   let html="<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
-  for(let p in products){
-    let s=products[p].stock, min=products[p].min;
+  for(let p of Array.from(productSelect.options).map(o=>o.value)){
+    let s = products[p]?.stock || 0;
+    let min = products[p]?.min || 0;
     let cls = s<=0?"status-red":(s<=min?"status-yellow":"status-green");
     let st = s<=0?"หมด":(s<=min?"ใกล้หมด":"ปกติ");
-    html+=`<tr><td>${p}</td><td>${s}</td><td class="${cls}">${st}</td></tr>`;
+    html += `<tr><td>${p}</td><td>${s}</td><td class="${cls}">${st}</td></tr>`;
   }
   inventoryDiv.innerHTML = html;
 }
@@ -140,8 +148,7 @@ function addToCart(){
   let q = parseInt(qty.value);
   let priceInput = price.value ? parseInt(price.value) : (products[p]?.price||0);
   if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
-  if(!products[p]){ alert("ไม่พบสินค้า"); return; }
-  if(products[p].stock < q){ alert("สต็อคไม่พอ: "+p); return; }
+  if(products[p]?.stock < q){ alert("สต็อคไม่พอ: "+p); return; }
   let found = cart.find(c=>c.p===p);
   if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
   renderCart();
@@ -192,6 +199,7 @@ async function checkout(){
 window.addEventListener("DOMContentLoaded", async()=>{
   await loadProducts();
   await loadSales();
+  setInterval(loadProducts,5000); // อัปเดต stock ทุก 5 วินาที
 });
 </script>
 
