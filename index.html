@@ -73,7 +73,7 @@ button { padding: 4px 10px; margin: 2px; cursor:pointer; }
 <p>เวลา: <span id="time"></span></p>
 
 <script>
-// ===== URL Google Apps Script WebApp =====
+// ===== URL Google Apps Script =====
 const API_URL = "https://script.google.com/macros/s/AKfycbxxfk1ujL0IxnzWVN36Teu1CKwfxa8-zppOP9ZW6nJGlxTqtBoQ-d06XR1RUJUfZy93DQ/exec";
 
 // ===== DOM Elements =====
@@ -86,8 +86,8 @@ const status = document.getElementById("status");
 const inventoryDiv = document.getElementById("inventory");
 const cartDiv = document.getElementById("cart");
 
-// ===== ตัวแปร =====
-let products = {}; // โหลดจาก API
+// ===== ตัวเลือกสินค้า =====
+let products = {};
 let cart = [];
 let sales = [];
 let isProcessing = false;
@@ -95,26 +95,41 @@ let isProcessing = false;
 // ===== นาฬิกา =====
 setInterval(()=>{ document.getElementById("time").innerText = new Date().toLocaleString(); },1000);
 
-// ===== โหลดสินค้าแบบเรียลไทม์ =====
+// ===== โหลดสินค้าเรียลไทม์ =====
 async function loadProducts() {
   try {
     let res = await fetch(`${API_URL}?action=getStock`);
     let data = await res.json();
-    products = data; // เก็บข้อมูลล่าสุด
+    products = data;
+    if(Object.keys(products).length === 0){
+      // fallback hardcode
+      products = {
+        "แก้ว":{price:69,stock:100,min:50},
+        "PCM1000":{price:1290,stock:2,min:0},
+        "PEA1000":{price:1290,stock:2,min:0},
+        "PCF1000":{price:1290,stock:2,min:0},
+        "WEC1000":{price:1690,stock:4,min:2},
+        "WEI1000":{price:1690,stock:4,min:2},
+        "WER1000":{price:1690,stock:4,min:2},
+        "PCF500":{price:990,stock:100,min:50},
+        "WEC300":{price:990,stock:20,min:10},
+        "Test HP35g.":{price:99,stock:200,min:100},
+        "HP35g แบบกล่อง.":{price:99,stock:120,min:60},
+        "HP500":{price:990,stock:30,min:10}
+      };
+    }
     populateProducts();
     showInventory();
-  } catch(e) {
+  } catch(e){
     console.error("โหลดสินค้าไม่สำเร็จ:", e);
   }
 }
 
 // ===== แสดง dropdown =====
 function populateProducts(){
-  productSelect.innerHTML = "";
+  productSelect.innerHTML="";
   for(let p in products){
-    let s = products[p].stock || 0;
-    let price = products[p].price || 0;
-    productSelect.innerHTML += `<option value="${p}" data-stock="${s}" data-price="${price}">${p} (คงเหลือ: ${s}, ราคา: ${price} บาท)</option>`;
+    productSelect.innerHTML += `<option value="${p}">${p} (คงเหลือ: ${products[p].stock})</option>`;
   }
 }
 
@@ -122,10 +137,10 @@ function populateProducts(){
 function showInventory() {
   let html = "<table><tr><th>สินค้า</th><th>คงเหลือ</th><th>สถานะ</th></tr>";
   for (let p in products) {
-    let s = products[p].stock || 0;
-    let min = products[p].min || 0;
-    let statusText = s <= 0 ? "หมด" : s <= min ? "ใกล้หมด" : "ปกติ";
-    let cls = s <= 0 ? "status-red" : s <= min ? "status-yellow" : "status-green";
+    let s = products[p].stock;
+    let min = products[p].min;
+    let cls = s<=0?"status-red":(s<=min?"status-yellow":"status-green");
+    let statusText = s<=0?"หมด":(s<=min?"ใกล้หมด":"ปกติ");
     html += `<tr><td>${p}</td><td>${s}</td><td class="${cls}">${statusText}</td></tr>`;
   }
   inventoryDiv.innerHTML = html;
@@ -138,7 +153,7 @@ async function loadSales() {
     let data = await res.json();
     sales = data;
     renderSales();
-  } catch(e) {
+  } catch(e){
     console.error("โหลด sales ไม่สำเร็จ:", e);
   }
 }
@@ -149,7 +164,7 @@ function renderSales(){
   tbody.innerHTML="";
   let totalAll=0;
   sales.forEach((s,i)=>{
-    let itemsText = Array.isArray(s.items) ? s.items.map(x=>x.p+"("+x.q+")").join(",") : s.items;
+    let itemsText = Array.isArray(s.items)?s.items.map(x=>x.p+"("+x.q+")").join(","):s.items;
     tbody.innerHTML += `<tr>
       <td>${i+1}</td>
       <td>${s.user}</td>
@@ -157,10 +172,10 @@ function renderSales(){
       <td>${s.total}</td>
       <td><button onclick="deleteSale(${i})">ลบ</button></td>
     </tr>`;
-    totalAll += Number(s.total)||0;
+    totalAll+=Number(s.total)||0;
   });
-  document.getElementById("totalSales").innerText = totalAll;
-  document.getElementById("totalOrders").innerText = sales.length;
+  document.getElementById("totalSales").innerText=totalAll;
+  document.getElementById("totalOrders").innerText=sales.length;
 }
 
 function deleteSale(i){
@@ -181,15 +196,13 @@ function removeCart(i){
   renderCart();
 }
 
-// ===== เพิ่มลงตะกร้า =====
 function addToCart(){
   let p = productSelect.value;
   let q = parseInt(qty.value);
-  let priceInput = price.value ? parseInt(price.value) : (products[p]?.price || 0);
-  let stockAvailable = products[p]?.stock || 0;
-
+  let priceInput = price.value?parseInt(price.value):(products[p]?.price||0);
   if(!q || q<=0){ alert("จำนวนไม่ถูกต้อง"); return; }
-  if(q > stockAvailable){ alert("สต็อกไม่พอ: "+p); return; }
+  if(!products[p]){ alert("ไม่พบสินค้า"); return; }
+  if(products[p].stock < q){ alert("สต็อคไม่พอ: "+p); return; }
 
   let found = cart.find(c=>c.p===p);
   if(found){ found.q += q; } else { cart.push({p,q,price:priceInput}); }
@@ -199,15 +212,15 @@ function addToCart(){
 }
 
 // ===== บันทึกยอดขาย =====
-async function sendToSheet(data) {
-  try {
-    let res = await fetch(API_URL, {
+async function sendToSheet(data){
+  try{
+    let res = await fetch(API_URL,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify(data)
     });
     return await res.json();
-  } catch(e) {
+  }catch(e){
     return {status:"error", message:"network error"};
   }
 }
@@ -231,8 +244,8 @@ async function checkout(){
   let result = await sendToSheet({user,event:ev,items:itemsText,qty:totalQty,total,cart});
 
   if(result.status==="success"){
-    await loadProducts(); // โหลด stock ใหม่
-    await loadSales();    // อัปเดตยอดขาย
+    await loadProducts();  // อัปเดต stock เรียลไทม์
+    await loadSales();     // อัปเดตยอดขายเรียลไทม์
     cart=[];
     renderCart();
     status.innerText="✅ บันทึกสำเร็จ";
@@ -245,8 +258,8 @@ async function checkout(){
 
 // ===== INIT =====
 window.addEventListener("DOMContentLoaded", async ()=>{
-  await loadProducts();  // โหลดสินค้าเรียลไทม์
-  await loadSales();     // โหลดยอดขาย
+  await loadProducts();
+  await loadSales();
 });
 </script>
 </body>
