@@ -9,7 +9,9 @@
 <style>
 body { font-family: sans-serif; background:#111; color:#fff; padding:20px }
 .card { background:#1e1e2f; padding:15px; margin:10px 0; border-radius:10px }
-button { padding:8px 12px; margin-top:5px }
+button { padding:8px 12px; margin-top:5px; cursor:pointer }
+button:disabled { opacity:0.5; cursor:not-allowed }
+.total { font-size:18px; margin-top:10px; color:#00e676 }
 </style>
 </head>
 
@@ -31,7 +33,8 @@ button { padding:8px 12px; margin-top:5px }
 
   <h3>🛒 ตะกร้า</h3>
   <div id="cart"></div>
-  <button onclick="checkout()">ชำระเงิน</button>
+  <div id="total" class="total"></div>
+  <button id="checkoutBtn" onclick="checkout()">ชำระเงิน</button>
 
   <h3>📊 Dashboard</h3>
   <canvas id="chart"></canvas>
@@ -41,9 +44,13 @@ button { padding:8px 12px; margin-top:5px }
 let products = [];
 let cart = [];
 let staff = "";
+let chartInstance = null;
 
 // LOGIN
 function login(){
+  const userVal = document.getElementById("user").value;
+  const passVal = document.getElementById("pass").value;
+
   google.script.run.withSuccessHandler(res=>{
     if(res.status){
       staff = res.user;
@@ -54,13 +61,13 @@ function login(){
     } else {
       alert("Login ไม่สำเร็จ");
     }
-  }).login(user.value, pass.value);
+  }).login(userVal, passVal);
 }
 
 // โหลดสินค้า
 function loadProducts(){
   google.script.run.withSuccessHandler(data=>{
-    products = data;
+    products = data || [];
     renderProducts();
   }).getProducts();
 }
@@ -68,6 +75,7 @@ function loadProducts(){
 // แสดงสินค้า
 function renderProducts(){
   let html = "";
+
   products.forEach(p=>{
     html += `
     <div class="card">
@@ -77,48 +85,103 @@ function renderProducts(){
       <button onclick="add('${p.id}')">เพิ่ม</button>
     </div>`;
   });
+
   document.getElementById("products").innerHTML = html;
 }
 
 // เพิ่มตะกร้า
 function add(id){
   let p = products.find(x=>x.id==id);
+  if(!p || p.stock <= 0){
+    alert("ของหมด");
+    return;
+  }
+
   let item = cart.find(x=>x.id==id);
 
-  if(item) item.qty++;
-  else cart.push({...p, qty:1});
+  if(item){
+    if(item.qty < p.stock){
+      item.qty++;
+    } else {
+      alert("สต็อกไม่พอ");
+      return;
+    }
+  } else {
+    cart.push({...p, qty:1});
+  }
 
+  renderCart();
+}
+
+// ลบสินค้า
+function removeItem(id){
+  cart = cart.filter(x=>x.id!=id);
   renderCart();
 }
 
 // แสดงตะกร้า
 function renderCart(){
   let html="";
+  let total = 0;
+
   cart.forEach(c=>{
-    html += `${c.name} x ${c.qty}<br>`;
+    let sum = c.qty * c.price;
+    total += sum;
+
+    html += `
+    ${c.name} x ${c.qty} = ${sum} บาท 
+    <button onclick="removeItem('${c.id}')">ลบ</button><br>`;
   });
+
   document.getElementById("cart").innerHTML = html;
+  document.getElementById("total").innerText = "รวม: " + total + " บาท";
 }
 
 // CHECKOUT
 function checkout(){
-  google.script.run.withSuccessHandler(()=>{
-    alert("ขายสำเร็จ");
-    cart=[];
-    renderCart();
-    loadProducts();
-    loadDashboard();
-  }).checkout(cart, staff);
+  if(cart.length === 0){
+    alert("ตะกร้าว่าง");
+    return;
+  }
+
+  const btn = document.getElementById("checkoutBtn");
+  btn.disabled = true;
+  btn.innerText = "กำลังบันทึก...";
+
+  google.script.run
+    .withSuccessHandler(()=>{
+      alert("ขายสำเร็จ");
+      cart=[];
+      renderCart();
+      loadProducts();
+      loadDashboard();
+
+      btn.disabled = false;
+      btn.innerText = "ชำระเงิน";
+    })
+    .withFailureHandler(err=>{
+      alert(err.message);
+      btn.disabled = false;
+      btn.innerText = "ชำระเงิน";
+    })
+    .checkout(cart, staff);
 }
 
 // Dashboard
 function loadDashboard(){
   google.script.run.withSuccessHandler(data=>{
-    new Chart(document.getElementById("chart"), {
+    if(chartInstance){
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(document.getElementById("chart"), {
       type: 'line',
       data: {
         labels: data.map(d=>d.date),
-        datasets: [{ label:'ยอดขาย', data:data.map(d=>d.total) }]
+        datasets: [{
+          label:'ยอดขาย',
+          data:data.map(d=>d.total)
+        }]
       }
     });
   }).getDashboard();
