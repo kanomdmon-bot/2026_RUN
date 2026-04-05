@@ -9,7 +9,8 @@
 <style>
 body { font-family: sans-serif; background:#111; color:#fff; padding:20px }
 .card { background:#1e1e2f; padding:15px; margin:10px 0; border-radius:10px }
-button { padding:8px 12px; margin-top:5px }
+button { padding:8px 12px; margin-top:5px; cursor:pointer }
+button:disabled { opacity:0.5 }
 .total { font-size:18px; margin-top:10px; color:#00e676 }
 </style>
 </head>
@@ -19,12 +20,12 @@ button { padding:8px 12px; margin-top:5px }
 <h2>🛒 POS ระบบขายหน้าร้าน</h2>
 
 <h3>สินค้า</h3>
-<div id="products"></div>
+<div id="products">กำลังโหลด...</div>
 
 <h3>🛒 ตะกร้า</h3>
 <div id="cart"></div>
-<div id="total" class="total"></div>
-<button onclick="checkout()">ชำระเงิน</button>
+<div id="total" class="total">รวม: 0 บาท</div>
+<button id="checkoutBtn" onclick="checkout()">ชำระเงิน</button>
 
 <h3>📊 Dashboard</h3>
 <canvas id="chart"></canvas>
@@ -37,7 +38,7 @@ let chartInstance = null;
 // โหลดสินค้า
 function loadProducts(){
   google.script.run.withSuccessHandler(data=>{
-    products = data;
+    products = data || [];
     renderProducts();
   }).getProducts();
 }
@@ -46,29 +47,38 @@ function loadProducts(){
 function renderProducts(){
   let html = "";
 
-  products.forEach(p=>{
-    html += `
-    <div class="card">
-      <b>${p.name}</b><br>
-      ราคา: ${p.price} บาท<br>
-      คงเหลือ: ${p.stock}<br>
-      <button onclick="add('${p.id}')">เพิ่ม</button>
-    </div>`;
-  });
+  if(products.length === 0){
+    html = "ไม่มีสินค้า";
+  } else {
+    products.forEach(p=>{
+      html += `
+      <div class="card">
+        <b>${p.name}</b><br>
+        ราคา: ${p.price} บาท<br>
+        คงเหลือ: ${p.stock}<br>
+        <button onclick="add('${p.id}')">เพิ่ม</button>
+      </div>`;
+    });
+  }
 
   document.getElementById("products").innerHTML = html;
 }
 
 // เพิ่มสินค้า
 function add(id){
-  let p = products.find(x=>x.id==id);
+  let p = products.find(x => String(x.id) === String(id));
 
-  if(!p || p.stock <= 0){
+  if(!p){
+    alert("ไม่พบสินค้า");
+    return;
+  }
+
+  if(p.stock <= 0){
     alert("ของหมด");
     return;
   }
 
-  let item = cart.find(x=>x.id==id);
+  let item = cart.find(x => String(x.id) === String(id));
 
   if(item){
     if(item.qty < p.stock){
@@ -86,7 +96,7 @@ function add(id){
 
 // ลบสินค้า
 function removeItem(id){
-  cart = cart.filter(x=>x.id!=id);
+  cart = cart.filter(x => String(x.id) !== String(id));
   renderCart();
 }
 
@@ -104,24 +114,37 @@ function renderCart(){
     <button onclick="removeItem('${c.id}')">ลบ</button><br>`;
   });
 
-  document.getElementById("cart").innerHTML = html;
+  document.getElementById("cart").innerHTML = html || "ตะกร้าว่าง";
   document.getElementById("total").innerText = "รวม: " + total + " บาท";
 }
 
 // CHECKOUT
 function checkout(){
-  if(cart.length===0){
+  if(cart.length === 0){
     alert("ตะกร้าว่าง");
     return;
   }
 
-  google.script.run.withSuccessHandler(()=>{
-    alert("ขายสำเร็จ");
-    cart=[];
-    renderCart();
-    loadProducts();
-    loadDashboard();
-  }).checkout(cart);
+  const btn = document.getElementById("checkoutBtn");
+  btn.disabled = true;
+  btn.innerText = "กำลังบันทึก...";
+
+  google.script.run
+    .withSuccessHandler(()=>{
+      alert("ขายสำเร็จ");
+      cart=[];
+      renderCart();
+      loadProducts();
+      loadDashboard();
+      btn.disabled = false;
+      btn.innerText = "ชำระเงิน";
+    })
+    .withFailureHandler(err=>{
+      alert(err.message);
+      btn.disabled = false;
+      btn.innerText = "ชำระเงิน";
+    })
+    .checkout(cart);
 }
 
 // Dashboard
