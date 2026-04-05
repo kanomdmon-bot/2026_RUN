@@ -4,7 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>POS</title>
 
-<script src="https://script.google.com/macros/s/AKfycbxvBJIbJfyzXq7obrXGsSMGbWGXt7MKuV-dha05-AX8lT1ITNE5ygpIoczebR354KZeDw/exec"></script>
+<!-- ✅ เพิ่ม Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body { font-family: sans-serif; background:#111; color:#fff; padding:20px }
@@ -23,7 +24,7 @@ button:disabled { opacity:0.5 }
 <div id="products">กำลังโหลด...</div>
 
 <h3>🛒 ตะกร้า</h3>
-<div id="cart"></div>
+<div id="cart">ตะกร้าว่าง</div>
 <div id="total" class="total">รวม: 0 บาท</div>
 <button id="checkoutBtn" onclick="checkout()">ชำระเงิน</button>
 
@@ -37,6 +38,8 @@ let chartInstance = null;
 
 // โหลดสินค้า
 function loadProducts(){
+  document.getElementById("products").innerHTML = "กำลังโหลด...";
+
   google.script.run.withSuccessHandler(data=>{
     products = data || [];
     renderProducts();
@@ -131,7 +134,7 @@ function checkout(){
 
   google.script.run
     .withSuccessHandler(()=>{
-      alert("ขายสำเร็จ");
+      alert("ขายสำเร็จ 🎉");
       cart=[];
       renderCart();
       loadProducts();
@@ -140,7 +143,7 @@ function checkout(){
       btn.innerText = "ชำระเงิน";
     })
     .withFailureHandler(err=>{
-      alert(err.message);
+      alert("ERROR: " + err.message);
       btn.disabled = false;
       btn.innerText = "ชำระเงิน";
     })
@@ -150,21 +153,32 @@ function checkout(){
 // Dashboard
 function loadDashboard(){
   google.script.run.withSuccessHandler(data=>{
+
+    if(!data || data.length === 0){
+      return;
+    }
+
     if(chartInstance) chartInstance.destroy();
 
     chartInstance = new Chart(document.getElementById("chart"), {
       type:'line',
       data:{
         labels:data.map(d=>d.date),
-        datasets:[{ label:'ยอดขาย', data:data.map(d=>d.total) }]
+        datasets:[{
+          label:'ยอดขาย',
+          data:data.map(d=>d.total),
+          tension:0.3
+        }]
       }
     });
   }).getDashboard();
 }
 
 // โหลดตอนเปิด
-loadProducts();
-loadDashboard();
+window.onload = function(){
+  loadProducts();
+  loadDashboard();
+}
 </script>
 
 </body>
