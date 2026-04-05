@@ -9,8 +9,7 @@
 <style>
 body { font-family: sans-serif; background:#111; color:#fff; padding:20px }
 .card { background:#1e1e2f; padding:15px; margin:10px 0; border-radius:10px }
-button { padding:8px 12px; margin-top:5px; cursor:pointer }
-button:disabled { opacity:0.5; cursor:not-allowed }
+button { padding:8px 12px; margin-top:5px }
 .total { font-size:18px; margin-top:10px; color:#00e676 }
 </style>
 </head>
@@ -19,55 +18,26 @@ button:disabled { opacity:0.5; cursor:not-allowed }
 
 <h2>🛒 POS ระบบขายหน้าร้าน</h2>
 
-<!-- LOGIN -->
-<div id="loginBox">
-  <input id="user" placeholder="username"><br><br>
-  <input id="pass" type="password" placeholder="password"><br><br>
-  <button onclick="login()">Login</button>
-</div>
+<h3>สินค้า</h3>
+<div id="products"></div>
 
-<!-- POS -->
-<div id="app" style="display:none">
-  <h3>สินค้า</h3>
-  <div id="products"></div>
+<h3>🛒 ตะกร้า</h3>
+<div id="cart"></div>
+<div id="total" class="total"></div>
+<button onclick="checkout()">ชำระเงิน</button>
 
-  <h3>🛒 ตะกร้า</h3>
-  <div id="cart"></div>
-  <div id="total" class="total"></div>
-  <button id="checkoutBtn" onclick="checkout()">ชำระเงิน</button>
-
-  <h3>📊 Dashboard</h3>
-  <canvas id="chart"></canvas>
-</div>
+<h3>📊 Dashboard</h3>
+<canvas id="chart"></canvas>
 
 <script>
 let products = [];
 let cart = [];
-let staff = "";
 let chartInstance = null;
-
-// LOGIN
-function login(){
-  const userVal = document.getElementById("user").value;
-  const passVal = document.getElementById("pass").value;
-
-  google.script.run.withSuccessHandler(res=>{
-    if(res.status){
-      staff = res.user;
-      document.getElementById("loginBox").style.display="none";
-      document.getElementById("app").style.display="block";
-      loadProducts();
-      loadDashboard();
-    } else {
-      alert("Login ไม่สำเร็จ");
-    }
-  }).login(userVal, passVal);
-}
 
 // โหลดสินค้า
 function loadProducts(){
   google.script.run.withSuccessHandler(data=>{
-    products = data || [];
+    products = data;
     renderProducts();
   }).getProducts();
 }
@@ -89,9 +59,10 @@ function renderProducts(){
   document.getElementById("products").innerHTML = html;
 }
 
-// เพิ่มตะกร้า
+// เพิ่มสินค้า
 function add(id){
   let p = products.find(x=>x.id==id);
+
   if(!p || p.stock <= 0){
     alert("ของหมด");
     return;
@@ -122,14 +93,14 @@ function removeItem(id){
 // แสดงตะกร้า
 function renderCart(){
   let html="";
-  let total = 0;
+  let total=0;
 
   cart.forEach(c=>{
     let sum = c.qty * c.price;
     total += sum;
 
     html += `
-    ${c.name} x ${c.qty} = ${sum} บาท 
+    ${c.name} x ${c.qty} = ${sum} บาท
     <button onclick="removeItem('${c.id}')">ลบ</button><br>`;
   });
 
@@ -139,53 +110,38 @@ function renderCart(){
 
 // CHECKOUT
 function checkout(){
-  if(cart.length === 0){
+  if(cart.length===0){
     alert("ตะกร้าว่าง");
     return;
   }
 
-  const btn = document.getElementById("checkoutBtn");
-  btn.disabled = true;
-  btn.innerText = "กำลังบันทึก...";
-
-  google.script.run
-    .withSuccessHandler(()=>{
-      alert("ขายสำเร็จ");
-      cart=[];
-      renderCart();
-      loadProducts();
-      loadDashboard();
-
-      btn.disabled = false;
-      btn.innerText = "ชำระเงิน";
-    })
-    .withFailureHandler(err=>{
-      alert(err.message);
-      btn.disabled = false;
-      btn.innerText = "ชำระเงิน";
-    })
-    .checkout(cart, staff);
+  google.script.run.withSuccessHandler(()=>{
+    alert("ขายสำเร็จ");
+    cart=[];
+    renderCart();
+    loadProducts();
+    loadDashboard();
+  }).checkout(cart);
 }
 
 // Dashboard
 function loadDashboard(){
   google.script.run.withSuccessHandler(data=>{
-    if(chartInstance){
-      chartInstance.destroy();
-    }
+    if(chartInstance) chartInstance.destroy();
 
     chartInstance = new Chart(document.getElementById("chart"), {
-      type: 'line',
-      data: {
-        labels: data.map(d=>d.date),
-        datasets: [{
-          label:'ยอดขาย',
-          data:data.map(d=>d.total)
-        }]
+      type:'line',
+      data:{
+        labels:data.map(d=>d.date),
+        datasets:[{ label:'ยอดขาย', data:data.map(d=>d.total) }]
       }
     });
   }).getDashboard();
 }
+
+// โหลดตอนเปิด
+loadProducts();
+loadDashboard();
 </script>
 
 </body>
