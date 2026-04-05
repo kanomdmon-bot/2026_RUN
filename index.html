@@ -4,21 +4,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>POS</title>
 
-<!-- ✅ เพิ่ม Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: sans-serif; background:#111; color:#fff; padding:20px }
+body { font-family: sans-serif; background:#111; color:#fff; padding:15px }
+h2 { text-align:center }
 .card { background:#1e1e2f; padding:15px; margin:10px 0; border-radius:10px }
-button { padding:8px 12px; margin-top:5px; cursor:pointer }
-button:disabled { opacity:0.5 }
-.total { font-size:18px; margin-top:10px; color:#00e676 }
+button { padding:10px; margin-top:5px; cursor:pointer; width:100% }
+.total { font-size:20px; margin-top:10px; color:#00e676 }
 </style>
 </head>
 
 <body>
 
-<h2>🛒 POS ระบบขายหน้าร้าน</h2>
+<h2>🛒 POS หน้าร้าน</h2>
 
 <h3>สินค้า</h3>
 <div id="products">กำลังโหลด...</div>
@@ -26,9 +25,9 @@ button:disabled { opacity:0.5 }
 <h3>🛒 ตะกร้า</h3>
 <div id="cart">ตะกร้าว่าง</div>
 <div id="total" class="total">รวม: 0 บาท</div>
-<button id="checkoutBtn" onclick="checkout()">ชำระเงิน</button>
+<button id="checkoutBtn" onclick="checkout()">💳 ชำระเงิน</button>
 
-<h3>📊 Dashboard</h3>
+<h3>📊 ยอดขาย</h3>
 <canvas id="chart"></canvas>
 
 <script>
@@ -38,8 +37,6 @@ let chartInstance = null;
 
 // โหลดสินค้า
 function loadProducts(){
-  document.getElementById("products").innerHTML = "กำลังโหลด...";
-
   google.script.run.withSuccessHandler(data=>{
     products = data || [];
     renderProducts();
@@ -50,36 +47,25 @@ function loadProducts(){
 function renderProducts(){
   let html = "";
 
-  if(products.length === 0){
-    html = "ไม่มีสินค้า";
-  } else {
-    products.forEach(p=>{
-      html += `
-      <div class="card">
-        <b>${p.name}</b><br>
-        ราคา: ${p.price} บาท<br>
-        คงเหลือ: ${p.stock}<br>
-        <button onclick="add('${p.id}')">เพิ่ม</button>
-      </div>`;
-    });
-  }
+  products.forEach(p=>{
+    html += `
+    <div class="card">
+      <b>${p.name}</b><br>
+      ราคา: ${p.price} บาท<br>
+      คงเหลือ: ${p.stock}<br>
+      <button onclick="add('${p.id}')">➕ เพิ่ม</button>
+    </div>`;
+  });
 
-  document.getElementById("products").innerHTML = html;
+  document.getElementById("products").innerHTML = html || "ไม่มีสินค้า";
 }
 
 // เพิ่มสินค้า
 function add(id){
   let p = products.find(x => String(x.id) === String(id));
 
-  if(!p){
-    alert("ไม่พบสินค้า");
-    return;
-  }
-
-  if(p.stock <= 0){
-    alert("ของหมด");
-    return;
-  }
+  if(!p) return alert("ไม่พบสินค้า");
+  if(p.stock <= 0) return alert("ของหมด");
 
   let item = cart.find(x => String(x.id) === String(id));
 
@@ -87,8 +73,7 @@ function add(id){
     if(item.qty < p.stock){
       item.qty++;
     } else {
-      alert("สต็อกไม่พอ");
-      return;
+      return alert("สต็อกไม่พอ");
     }
   } else {
     cart.push({...p, qty:1});
@@ -103,7 +88,7 @@ function removeItem(id){
   renderCart();
 }
 
-// แสดงตะกร้า
+// render cart
 function renderCart(){
   let html="";
   let total=0;
@@ -114,49 +99,45 @@ function renderCart(){
 
     html += `
     ${c.name} x ${c.qty} = ${sum} บาท
-    <button onclick="removeItem('${c.id}')">ลบ</button><br>`;
+    <button onclick="removeItem('${c.id}')">❌ ลบ</button><br>`;
   });
 
   document.getElementById("cart").innerHTML = html || "ตะกร้าว่าง";
   document.getElementById("total").innerText = "รวม: " + total + " บาท";
 }
 
-// CHECKOUT
+// checkout
 function checkout(){
-  if(cart.length === 0){
-    alert("ตะกร้าว่าง");
-    return;
-  }
+  if(cart.length === 0) return alert("ตะกร้าว่าง");
 
   const btn = document.getElementById("checkoutBtn");
   btn.disabled = true;
   btn.innerText = "กำลังบันทึก...";
 
   google.script.run
-    .withSuccessHandler(()=>{
-      alert("ขายสำเร็จ 🎉");
+    .withSuccessHandler(res=>{
+      alert("ขายสำเร็จ 🎉\nเลขออเดอร์: " + res.orderId + "\nยอด: " + res.total + " บาท");
+
       cart=[];
       renderCart();
       loadProducts();
       loadDashboard();
+
       btn.disabled = false;
-      btn.innerText = "ชำระเงิน";
+      btn.innerText = "💳 ชำระเงิน";
     })
     .withFailureHandler(err=>{
-      alert("ERROR: " + err.message);
+      alert(err.message);
       btn.disabled = false;
-      btn.innerText = "ชำระเงิน";
+      btn.innerText = "💳 ชำระเงิน";
     })
     .checkout(cart);
 }
 
-// Dashboard
+// dashboard
 function loadDashboard(){
   google.script.run.withSuccessHandler(data=>{
-
-    if(!data || data.length === 0){
-      return;
-    }
+    if(!data) return;
 
     if(chartInstance) chartInstance.destroy();
 
@@ -174,11 +155,10 @@ function loadDashboard(){
   }).getDashboard();
 }
 
-// โหลดตอนเปิด
-window.onload = function(){
+window.onload = ()=>{
   loadProducts();
   loadDashboard();
-}
+};
 </script>
 
 </body>
